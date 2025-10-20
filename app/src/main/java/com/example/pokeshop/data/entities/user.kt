@@ -11,8 +11,8 @@ import androidx.room.ForeignKey
         ForeignKey(
         entity = RolEntity::class,
         parentColumns = ["id"],
-        childColumns = ["RolId"],
-            onDelete = ForeignKey.CASCADE
+        childColumns = ["rolId"],
+            onDelete = ForeignKey.SET_NULL
     )
     ]
 )
