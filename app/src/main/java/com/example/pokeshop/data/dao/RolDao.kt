@@ -14,7 +14,7 @@ interface RolDao {
 
     //funcion para obtener todos los roles
     @Query("SELECT * FROM roles")
-    fun getAllrols(): Flow<List<RolEntity>>
+    fun getAllRoles(): Flow<List<RolEntity>>
 
     //funcion para obtener roles por id
     @Query("SELECT * FROM roles WHERE id = :rolId")
@@ -35,11 +35,5 @@ interface RolDao {
     //funcion para borrar roles
     @Delete
     suspend fun deleteRol(rol: RolEntity)
-
-    //funcion para borrar un rol en especifico
-    @Query("DELETE FROM roles WHERE id = :rolId")
-    suspend fun deleteRolById(rolId: Long)
-
-
 
 }
