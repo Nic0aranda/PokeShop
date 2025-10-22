@@ -23,5 +23,6 @@ data class UserEntity(
     val lastNames: String,
     val email: String,
     val password: String,
-    val status: Boolean = true
+    val status: Boolean = true,
+    val rolId: Long? = null
 )
