@@ -1,14 +1,18 @@
 package com.example.pokeshop.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.ui.screen.HomePS
 import com.example.pokeshop.ui.screen.Inicio
 import com.example.pokeshop.ui.screen.LoginScreenVm
+import com.example.pokeshop.ui.screen.ProfileScreen
+import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
+
 
 @Composable
 fun AppNavGraph(
@@ -21,12 +25,10 @@ fun AppNavGraph(
     ) {
         composable(Route.Inicio.path) {
             Inicio(
-                viewModel = viewModel,
                 onNavigateToLogin = {
                     navController.navigate(Route.Login.path)
                 },
                 onNavigateToRegister = {
-                    // La navegación al registro ya está definida, perfecto.
                     navController.navigate(Route.Register.path)
                 }
             )
@@ -37,19 +39,17 @@ fun AppNavGraph(
                 viewModel = viewModel,
                 onLoginSuccess = { isAdmin ->
                     val destination = if (isAdmin) {
-                        // Usamos la ruta definida en tu objeto Route
                         Route.AdminHome.path
                     } else {
                         Route.Home.path
                     }
                     navController.navigate(destination) {
-                        // Limpiamos el backstack hasta la pantalla de inicio
-                        // para que el usuario no pueda volver al login con el botón de atrás.
+                        // Limpiamos el backstack hasta el inicio para que no pueda volver al login.
                         popUpTo(Route.Inicio.path) { inclusive = true }
                     }
                 },
                 onGoRegister = {
-                    // Navega a registro y evita múltiples copias en el backstack
+                    // Navega a registro y evita múltiples copias en el backstack.
                     navController.navigate(Route.Register.path) {
                         launchSingleTop = true
                     }
@@ -57,17 +57,14 @@ fun AppNavGraph(
             )
         }
 
-        // --- AÑADIR LA RUTA PARA LA PANTALLA DE REGISTRO ---
         composable(Route.Register.path) {
             Registro(
                 viewModel = viewModel,
                 onRegisterSuccess = {
-                    // Después de un registro exitoso, enviamos al usuario al Login
-                    // para que inicie sesión con su nueva cuenta.
+                    // Después de un registro exitoso, enviamos al usuario al Login.
                     navController.navigate(Route.Login.path) {
-                        // Limpiamos la pantalla de registro del backstack
+                        // Limpiamos la pantalla de registro del backstack.
                         popUpTo(Route.Register.path) { inclusive = true }
-                        // Asegura que no se abra una nueva pantalla de login si ya existe una
                         launchSingleTop = true
                     }
                 },
@@ -93,5 +90,33 @@ fun AppNavGraph(
             )
         }
 
+        // --- AÑADE AQUÍ EL COMPOSABLE PARA ADMINHOME ---
+        composable(Route.AdminHome.path) {
+            // Ejemplo: AdminHomeScreen(viewModel = viewModel)
+        }
+
+        // --- AÑADE AQUÍ EL COMPOSABLE PARA CATALOG ---
+        composable(Route.Catalog.path) {
+            // Ejemplo: CatalogScreen(viewModel = viewModel)
+        }
+
+        composable(Route.Profile.path) { // Usar la ruta del objeto Route
+            // Recolecta el estado del usuario de forma segura con el ciclo de vida
+            val userState by viewModel.userState.collectAsStateWithLifecycle()
+
+            ProfileScreen(
+                username = userState.username, // Pasa el nombre
+                email = userState.email,       // Pasa el email
+                onLogout = {
+                    // Lógica para cerrar sesión
+                    viewModel.logout()
+                    navController.navigate(Route.Login.path) { // Usar la ruta del objeto Route
+                        // Limpia la pila de navegación para que el usuario no pueda volver atrás.
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        launchSingleTop = true // Evita apilar pantallas de login.
+                    }
+                }
+            )
+        }
     }
 }

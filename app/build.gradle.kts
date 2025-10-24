@@ -66,6 +66,9 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
+    // Permite crear formas circulares y definir colores
+    implementation("androidx.compose.ui:ui-graphics")
+
     // Compilador de Room
     ksp("androidx.room:room-compiler:2.6.1")
 
@@ -79,4 +82,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core:1.6.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
+    //Coil para imagenes
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    // Implementacion para abrir la galeria del telefono
+    implementation("androidx.activity:activity-compose:1.9.0")
+
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
 }

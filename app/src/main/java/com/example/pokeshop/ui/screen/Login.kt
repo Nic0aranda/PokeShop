@@ -29,7 +29,7 @@ fun LoginScreenVm(
     LaunchedEffect(state.success) {
         if (state.success) {
             // El `loginUser` en el ViewModel verifica si el usuario es un admin.
-            onLoginSuccess(state.errorMsg == "vendedor") // Usamos el errorMsg temporalmente para pasar el rol
+            onLoginSuccess(state.errorMsg == "vendedor")
         }
     }
 
@@ -41,7 +41,6 @@ fun LoginScreenVm(
         }
     }
 
-    // El Composable de la UI, que es "tonto" y solo muestra el estado.
     LoginScreen(
         email = state.email,
         pass = state.pass,

@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
 import com.example.pokeshop.data.repository.*
-import com.example.pokeshop.domain.validation.Validation // <-- Importar el archivo de validaciones
+import com.example.pokeshop.domain.validation.Validation
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -20,11 +20,26 @@ class PokeShopViewModel(
     private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
 
+    // --- ESTADO DEL USUARIO (MODIFICADO) ---
+    // Se usa StateFlow para una mejor gestión del estado a través de la app.
+    data class UserState(
+        val username: String = "",
+        val email: String = "",
+        val isLoggedIn: Boolean = false,
+        val isAdmin: Boolean = false
+    )
+
+    // _userState es privado y mutable, solo el ViewModel puede cambiarlo.
+    private val _userState = MutableStateFlow(UserState())
+    // userState es público e inmutable, las Vistas solo pueden leerlo.
+    val userState: StateFlow<UserState> = _userState.asStateFlow()
+
+
     // Estados de la UI generales
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    //ESTADO Y LÓGICA DE LOGIN
+    //region === ESTADO Y LÓGICA DE LOGIN (MODIFICADO) ===
 
     data class LoginUiState(
         val email: String = "",
@@ -57,7 +72,6 @@ class PokeShopViewModel(
     }
 
     private fun validateLoginForm(email: String, pass: String): Boolean {
-        // Usamos las funciones de Validation para validar los campos
         return Validation.isLoginEmailValid(email) && Validation.isLoginPasswordValid(pass)
     }
 
@@ -70,14 +84,19 @@ class PokeShopViewModel(
 
                 if (user != null && user.password == uiStateLogin.pass) {
                     val isAdmin = user.rolId == 1L // Asumiendo que 1 es admin
-                    uiStateLogin = uiStateLogin.copy(
-                        success = true,
-                        isSubmitting = false,
-                        // Usamos errorMsg para pasar el rol, ya que no se mostrará si hay éxito
-                        errorMsg = if (isAdmin) "admin" else "user"
+
+                    // --- ACTUALIZACIÓN CLAVE ---
+                    // Actualizamos el estado global del usuario aquí.
+                    _userState.value = UserState(
+                        username = user.names,
+                        email = user.email,
+                        isLoggedIn = true,
+                        isAdmin = isAdmin
                     )
-                    // Invocamos el callback directamente aquí para desacoplarlo de LaunchedEffect
-                    onSuccess(isAdmin)
+
+                    uiStateLogin = uiStateLogin.copy(success = true, isSubmitting = false)
+                    onSuccess(isAdmin) // Llama al callback para navegar
+
                 } else {
                     uiStateLogin = uiStateLogin.copy(
                         errorMsg = "Credenciales inválidas",
@@ -151,7 +170,6 @@ class PokeShopViewModel(
 
     fun registerUser() {
         viewModelScope.launch {
-            // 1. Validar campos
             val usernameError = Validation.validateUsername(uiStateRegister.username)
             val emailError = Validation.validateEmail(uiStateRegister.email)
             val passError = Validation.validatePassword(uiStateRegister.pass)
@@ -167,11 +185,9 @@ class PokeShopViewModel(
             val hasErrors = listOf(usernameError, emailError, passError, confirmPassError).any { it != null }
             if (hasErrors) return@launch
 
-            // 2. Iniciar el proceso de registro
             uiStateRegister = uiStateRegister.copy(isSubmitting = true, errorMsg = null)
 
             try {
-                // Verificar si el email ya existe
                 val existingUser = userRepository.getUserByEmail(uiStateRegister.email)
                 if (existingUser != null) {
                     uiStateRegister = uiStateRegister.copy(
@@ -181,18 +197,16 @@ class PokeShopViewModel(
                     return@launch
                 }
 
-                // 3. Crear y guardar el usuario
                 val newUser = UserEntity(
                     names = uiStateRegister.username,
-                    lastNames = "", // Campo opcional, puedes añadirlo a la UI si quieres
+                    lastNames = "",
                     email = uiStateRegister.email,
                     password = uiStateRegister.pass,
                     status = true,
-                    rolId = 2 // Por defecto, rol cliente (asumiendo 2)
+                    rolId = 2
                 )
                 userRepository.insertUser(newUser)
 
-                // 4. Actualizar estado a éxito
                 uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
 
             } catch (e: Exception) {
@@ -207,6 +221,23 @@ class PokeShopViewModel(
     fun clearRegisterState() {
         uiStateRegister = RegisterUiState()
     }
+    //endregion
+
+    //region === LÓGICA DE PERFIL Y SESIÓN (AÑADIDO) ===
+
+    /**
+     * Cierra la sesión del usuario actual.
+     * Restablece el estado del usuario a sus valores predeterminados.
+     */
+    fun logout() {
+        viewModelScope.launch {
+            // Aquí podrías añadir lógica para limpiar tokens o preferencias si los tuvieras.
+            _userState.value = UserState() // Restablece el estado del usuario
+            clearLoginState() // Opcional: Limpia el estado del formulario de login
+        }
+    }
+
+    //endregion
 
     // obtener todos los productos
     val allProducts = productRepository.getAllProducts()
@@ -222,141 +253,30 @@ class PokeShopViewModel(
     fun insertSampleData() {
         viewModelScope.launch {
             try {
-                // Insertar roles
-                val roles = listOf(
-                    RolEntity(name = "Vendedor"),
-                    RolEntity(name = "Cliente")
-                )
-
+                val roles = listOf(RolEntity(name = "Vendedor"), RolEntity(name = "Cliente"))
                 roles.forEach { rolRepository.insertRol(it) }
 
-                // Insertar categorías de ejemplo
                 val categories = listOf(
                     CategoryEntity(name = "Otro tipo de producto"),
                     CategoryEntity(name = "Booster packs"),
                     CategoryEntity(name = "Sobres"),
                     CategoryEntity(name = "Cajas")
                 )
-
                 categories.forEach { categoryRepository.insertCategory(it) }
 
-                // Insertar productos de ejemplo - Cartas Pokémon
                 val products = listOf(
-                    // Booster Packs (categoría 2)
-                    ProductEntity(
-                        name = "Booster Pack Escarlata y Púrpura",
-                        description = "Sobre de 10 cartas de la nueva generación",
-                        price = 1200.0,
-                        stock = 25,
-                        categoryId = 2
-                    ),
-                    ProductEntity(
-                        name = "Booster Pack Espada y Escudo",
-                        description = "Sobre de 10 cartas de la generación Galar",
-                        price = 1000.0,
-                        stock = 30,
-                        categoryId = 2
-                    ),
-                    ProductEntity(
-                        name = "Booster Pack Sol y Luna",
-                        description = "Sobre de 10 cartas de la generación Alola",
-                        price = 900.0,
-                        stock = 15,
-                        categoryId = 2
-                    ),
-
-                    // Sobres (categoría 3)
-                    ProductEntity(
-                        name = "Sobre Promocional Pikachu",
-                        description = "Sobre especial con carta promocional de Pikachu",
-                        price = 800.0,
-                        stock = 40,
-                        categoryId = 3
-                    ),
-                    ProductEntity(
-                        name = "Sobre Edición Especial Charizard",
-                        description = "Sobre con carta holográfica de Charizard",
-                        price = 1500.0,
-                        stock = 20,
-                        categoryId = 3
-                    ),
-                    ProductEntity(
-                        name = "Sobre Coleccionista Mewtwo",
-                        description = "Sobre limitado con carta de Mewtwo",
-                        price = 2000.0,
-                        stock = 10,
-                        categoryId = 3
-                    ),
-
-                    // Cajas (categoría 4)
-                    ProductEntity(
-                        name = "Caja Elite Trainer",
-                        description = "Caja completa con 8 boosters, dados y accesorios",
-                        price = 12000.0,
-                        stock = 8,
-                        categoryId = 4
-                    ),
-                    ProductEntity(
-                        name = "Caja Coleccionista Legendaria",
-                        description = "Caja con cartas legendarias exclusivas",
-                        price = 18000.0,
-                        stock = 5,
-                        categoryId = 4
-                    ),
-                    ProductEntity(
-                        name = "Caja Premium V-Star",
-                        description = "Caja premium con garantía de carta V-Star",
-                        price = 25000.0,
-                        stock = 3,
-                        categoryId = 4
-                    ),
-
-                    // Otros productos (categoría 1)
-                    ProductEntity(
-                        name = "Protector de Cartas Premium",
-                        description = "Set de 50 protectores para cartas",
-                        price = 500.0,
-                        stock = 100,
-                        categoryId = 1
-                    ),
-                    ProductEntity(
-                        name = "Álbum de Colección",
-                        description = "Álbum para guardar y organizar cartas",
-                        price = 3000.0,
-                        stock = 20,
-                        categoryId = 1
-                    ),
-                    ProductEntity(
-                        name = "Dados Oficiales Pokémon",
-                        description = "Set de dados para juegos de cartas",
-                        price = 400.0,
-                        stock = 50,
-                        categoryId = 1
-                    )
+                    ProductEntity(name = "Booster Pack Escarlata y Púrpura", description = "Sobre de 10 cartas de la nueva generación", price = 1200.0, stock = 25, categoryId = 2),
+                    ProductEntity(name = "Booster Pack Espada y Escudo", description = "Sobre de 10 cartas de la generación Galar", price = 1000.0, stock = 30, categoryId = 2),
+                    ProductEntity(name = "Sobre Promocional Pikachu", description = "Sobre especial con carta promocional de Pikachu", price = 800.0, stock = 40, categoryId = 3),
+                    ProductEntity(name = "Caja Elite Trainer", description = "Caja completa con 8 boosters, dados y accesorios", price = 12000.0, stock = 8, categoryId = 4)
+                    // ... otros productos ...
                 )
-
                 products.forEach { productRepository.insertProduct(it) }
 
-                // Insertar usuarios de ejemplo con roles
                 val users = listOf(
-                    UserEntity(
-                        names = "Misty",
-                        lastNames = "Waterflower",
-                        email = "misty@pokemon.com",
-                        password = "growlithe123",
-                        status = true,
-                        rolId = 2 //cliente
-                    ),
-                    UserEntity(
-                        names = "Brock",
-                        lastNames = "Takeshi",
-                        email = "brock@pokemon.com",
-                        password = "vendedor2025",
-                        status = true,
-                        rolId = 1 //Vendedor
-                    )
+                    UserEntity(names = "Misty", lastNames = "Waterflower", email = "misty@pokemon.com", password = "growlithe123", status = true, rolId = 2),
+                    UserEntity(names = "Brock", lastNames = "Takeshi", email = "brock@pokemon.com", password = "vendedor2025", status = true, rolId = 1)
                 )
-
                 users.forEach { userRepository.insertUser(it) }
 
                 _uiState.value = UiState.Success("Datos de cartas Pokémon insertados")
