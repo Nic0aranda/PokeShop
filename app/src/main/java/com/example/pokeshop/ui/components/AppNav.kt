@@ -18,8 +18,7 @@ import androidx.compose.ui.Modifier
 @Composable
 fun PokeTopBar(
     title: String,
-    onMenuClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onMenuClick: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -38,7 +37,6 @@ fun PokeTopBar(
                     contentDescription = "Abrir menú lateral"
                 )
             }
-        },
-        modifier = modifier
+        }
     )
 }

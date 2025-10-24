@@ -9,7 +9,7 @@ class PokeShopApplication : Application() {
     val database by lazy { AppDatabase.getInstance(this) }
 
     // Repositorios
-    val UserRepository by lazy { UserRepository(database.userDao()) }
+    val userRepository by lazy { UserRepository(database.userDao()) }
     val rolRepository by lazy { RolRepository(database.rolDao()) }
     val categoryRepository by lazy { CategoryRepository(database.categoryDao()) }
     val productRepository by lazy { ProductRepository(database.productDao()) }

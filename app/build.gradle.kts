@@ -50,6 +50,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.animation.core.lint)
+    implementation(libs.androidx.compose.ui.text)
+    implementation(libs.androidx.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -58,11 +62,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    //Room (SQLite)
+    // Room (SQLite)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
-    //Compilador de Room
+    // Compilador de Room
     ksp("androidx.room:room-compiler:2.6.1")
 
     // Coroutines
@@ -70,5 +74,9 @@ dependencies {
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
+    // Material Icons
+    implementation("androidx.compose.material:material-icons-core:1.6.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
 }
