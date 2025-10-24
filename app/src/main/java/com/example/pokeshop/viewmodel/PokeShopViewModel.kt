@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
 import com.example.pokeshop.data.repository.*
+import com.example.pokeshop.domain.validation.Validation // <-- Importar el archivo de validaciones
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -19,77 +20,73 @@ class PokeShopViewModel(
     private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
 
-    // Estados de la UI
+    // Estados de la UI generales
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    //Estado UI login
-    data class LoginUiState(                                   // Estado de la pantalla Login
-        val email: String = "",                                // Campo email
-        val pass: String = "",                                 // Campo contraseña (texto)
-        val emailError: String? = null,                        // Error de email
-        val passError: String? = null,                         // (Opcional) error de pass en login
-        val isSubmitting: Boolean = false,                     // Flag de carga
-        val canSubmit: Boolean = false,                        // Habilitar botón
-        val success: Boolean = false,                          // Resultado OK
-        val errorMsg: String? = null                           // Error global (credenciales inválidas)
+    //ESTADO Y LÓGICA DE LOGIN
+
+    data class LoginUiState(
+        val email: String = "",
+        val pass: String = "",
+        val emailError: String? = null,
+        val passError: String? = null,
+        val isSubmitting: Boolean = false,
+        val canSubmit: Boolean = false,
+        val success: Boolean = false,
+        val errorMsg: String? = null
     )
-    var UiStateLogin by mutableStateOf(LoginUiState())
+    var uiStateLogin by mutableStateOf(LoginUiState())
         private set
 
-    //Funcion para login
-    // Función para actualizar email
-    fun updateEmail(email: String) {
-        UiStateLogin = UiStateLogin.copy(
+    fun updateLoginEmail(email: String) {
+        val isValid = Validation.isLoginEmailValid(email)
+        uiStateLogin = uiStateLogin.copy(
             email = email,
-            emailError = if (email.isBlank()) "Email es requerido" else null,
-            canSubmit = validateForm(email, UiStateLogin.pass)
+            emailError = if (!isValid && email.isNotBlank()) "Email no válido" else null,
+            canSubmit = validateLoginForm(email, uiStateLogin.pass)
         )
     }
 
-    // Función para actualizar contraseña
-    fun updatePassword(pass: String) {
-        UiStateLogin = UiStateLogin.copy(
+    fun updateLoginPassword(pass: String) {
+        uiStateLogin = uiStateLogin.copy(
             pass = pass,
             passError = if (pass.isBlank()) "Contraseña es requerida" else null,
-            canSubmit = validateForm(UiStateLogin.email, pass)
+            canSubmit = validateLoginForm(uiStateLogin.email, pass)
         )
     }
 
-    // Validación básica del formulario
-    private fun validateForm(email: String, pass: String): Boolean {
-        return email.isNotBlank() && pass.isNotBlank()
+    private fun validateLoginForm(email: String, pass: String): Boolean {
+        // Usamos las funciones de Validation para validar los campos
+        return Validation.isLoginEmailValid(email) && Validation.isLoginPasswordValid(pass)
     }
 
-    // Función para realizar el login
     fun loginUser(onSuccess: (isAdmin: Boolean) -> Unit) {
         viewModelScope.launch {
-            UiStateLogin = UiStateLogin.copy(isSubmitting = true, errorMsg = null)
+            uiStateLogin = uiStateLogin.copy(isSubmitting = true, errorMsg = null)
 
             try {
-                // Buscar usuario por email
-                val user = userRepository.getUserByEmail(UiStateLogin.email)
+                val user = userRepository.getUserByEmail(uiStateLogin.email)
 
-                if (user != null && user.password == UiStateLogin.pass) {
-                    // Verificar el rol del usuario
+                if (user != null && user.password == uiStateLogin.pass) {
                     val isAdmin = user.rolId == 1L // Asumiendo que 1 es admin
-
-                    UiStateLogin = UiStateLogin.copy(
+                    uiStateLogin = uiStateLogin.copy(
                         success = true,
-                        isSubmitting = false
+                        isSubmitting = false,
+                        // Usamos errorMsg para pasar el rol, ya que no se mostrará si hay éxito
+                        errorMsg = if (isAdmin) "admin" else "user"
                     )
-
-                    // Llamar al callback con el tipo de usuario
+                    // Invocamos el callback directamente aquí para desacoplarlo de LaunchedEffect
                     onSuccess(isAdmin)
                 } else {
-                    UiStateLogin = UiStateLogin.copy(
+                    uiStateLogin = uiStateLogin.copy(
                         errorMsg = "Credenciales inválidas",
                         isSubmitting = false,
                         success = false
                     )
                 }
             } catch (e: Exception) {
-                UiStateLogin = UiStateLogin.copy(
+                uiStateLogin = uiStateLogin.copy(
                     errorMsg = "Error: ${e.message}",
                     isSubmitting = false,
                     success = false
@@ -98,11 +95,118 @@ class PokeShopViewModel(
         }
     }
 
-    // Limpiar estado
     fun clearLoginState() {
-        UiStateLogin = LoginUiState()
+        uiStateLogin = LoginUiState()
     }
 
+    //endregion
+
+    //region === ESTADO Y LÓGICA DE REGISTRO ===
+
+    data class RegisterUiState(
+        val username: String = "",
+        val email: String = "",
+        val pass: String = "",
+        val confirmPass: String = "",
+        val usernameError: String? = null,
+        val emailError: String? = null,
+        val passError: String? = null,
+        val confirmPassError: String? = null,
+        val isSubmitting: Boolean = false,
+        val canSubmit: Boolean = false,
+        val success: Boolean = false,
+        val errorMsg: String? = null
+    )
+    var uiStateRegister by mutableStateOf(RegisterUiState())
+        private set
+
+    fun updateRegisterUsername(username: String) {
+        uiStateRegister = uiStateRegister.copy(username = username, usernameError = null)
+        validateRegisterForm()
+    }
+
+    fun updateRegisterEmail(email: String) {
+        uiStateRegister = uiStateRegister.copy(email = email, emailError = null)
+        validateRegisterForm()
+    }
+
+    fun updateRegisterPassword(pass: String) {
+        uiStateRegister = uiStateRegister.copy(pass = pass, passError = null)
+        validateRegisterForm()
+    }
+
+    fun updateRegisterConfirmPassword(confirmPass: String) {
+        uiStateRegister = uiStateRegister.copy(confirmPass = confirmPass, confirmPassError = null)
+        validateRegisterForm()
+    }
+
+    private fun validateRegisterForm() {
+        val state = uiStateRegister
+        val canSubmit = state.username.isNotBlank() &&
+                state.email.isNotBlank() &&
+                state.pass.isNotBlank() &&
+                state.confirmPass.isNotBlank()
+        uiStateRegister = uiStateRegister.copy(canSubmit = canSubmit)
+    }
+
+    fun registerUser() {
+        viewModelScope.launch {
+            // 1. Validar campos
+            val usernameError = Validation.validateUsername(uiStateRegister.username)
+            val emailError = Validation.validateEmail(uiStateRegister.email)
+            val passError = Validation.validatePassword(uiStateRegister.pass)
+            val confirmPassError = Validation.validateConfirmPassword(uiStateRegister.pass, uiStateRegister.confirmPass)
+
+            uiStateRegister = uiStateRegister.copy(
+                usernameError = usernameError,
+                emailError = emailError,
+                passError = passError,
+                confirmPassError = confirmPassError
+            )
+
+            val hasErrors = listOf(usernameError, emailError, passError, confirmPassError).any { it != null }
+            if (hasErrors) return@launch
+
+            // 2. Iniciar el proceso de registro
+            uiStateRegister = uiStateRegister.copy(isSubmitting = true, errorMsg = null)
+
+            try {
+                // Verificar si el email ya existe
+                val existingUser = userRepository.getUserByEmail(uiStateRegister.email)
+                if (existingUser != null) {
+                    uiStateRegister = uiStateRegister.copy(
+                        emailError = "El correo electrónico ya está registrado.",
+                        isSubmitting = false
+                    )
+                    return@launch
+                }
+
+                // 3. Crear y guardar el usuario
+                val newUser = UserEntity(
+                    names = uiStateRegister.username,
+                    lastNames = "", // Campo opcional, puedes añadirlo a la UI si quieres
+                    email = uiStateRegister.email,
+                    password = uiStateRegister.pass,
+                    status = true,
+                    rolId = 2 // Por defecto, rol cliente (asumiendo 2)
+                )
+                userRepository.insertUser(newUser)
+
+                // 4. Actualizar estado a éxito
+                uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
+
+            } catch (e: Exception) {
+                uiStateRegister = uiStateRegister.copy(
+                    errorMsg = "Error en el registro: ${e.message}",
+                    isSubmitting = false
+                )
+            }
+        }
+    }
+
+    fun clearRegisterState() {
+        uiStateRegister = RegisterUiState()
+    }
 
     // obtener todos los productos
     val allProducts = productRepository.getAllProducts()

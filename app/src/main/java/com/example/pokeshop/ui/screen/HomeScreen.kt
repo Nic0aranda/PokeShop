@@ -1,50 +1,102 @@
 package com.example.pokeshop.ui.screen
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.example.pokeshop.viewmodel.PokeShopViewModel
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.pokeshop.ui.components.DrawerItem
+import com.example.pokeshop.ui.components.PokeDrawer
+import com.example.pokeshop.ui.components.PokeTopBar
+import com.example.pokeshop.viewmodel.PokeShopViewModel
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePS(
     viewModel: PokeShopViewModel,
-    onNavigateToCatalog: () -> Unit
+    onNavigateToCatalog: () -> Unit,
+    onNavigateToProfile: () -> Unit
 ) {
     val products by viewModel.allProducts.collectAsState(initial = emptyList())
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
+    // Items del menú lateral
+    val drawerItems = listOf(
+        DrawerItem(
+            title = "Inicio",
+            icon = Icons.Default.Home,
+            onClick = { /* Ya estamos en inicio */ }
+        ),
+        DrawerItem(
+            title = "Catálogo",
+            icon = Icons.Default.ShoppingCart,
+            onClick = onNavigateToCatalog
+        ),
+        DrawerItem(
+            title = "Perfil",
+            icon = Icons.Default.Person,
+            onClick = onNavigateToProfile
+        )
+    )
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            PokeDrawer(
+                drawerState = drawerState,
+                scope = scope,
+                drawerItems = drawerItems
+            )
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                PokeTopBar(
+                    title = "PokeShop",
+                    onMenuClick = {
+                        scope.launch {
+                            drawerState.open()
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            HomeContent(
+                products = products,
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
+    }
+}
+
+@Composable
+fun HomeContent(
+    products: List<com.example.pokeshop.data.entities.ProductEntity>,
+    modifier: Modifier = Modifier
+) {
     fun getProductsByCategory(categoryId: Long): List<com.example.pokeshop.data.entities.ProductEntity> {
         return products.filter { it.categoryId == categoryId }
     }
 
-
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -55,7 +107,7 @@ fun HomePS(
         ) {
             Text(
                 text = "Productos Destacados",
-                style = MaterialTheme.typography.headlineSmall // ← nota: "headlineSmall" con 's' minúscula
+                style = MaterialTheme.typography.headlineSmall
             )
         }
 
@@ -73,30 +125,17 @@ fun HomePS(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Sobres",
-                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
-            )
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(getProductsByCategory(3)) { product ->
-                    ProductItem(product = product)
-                }
-            }
+        Text(
+            text = "Sobres",
+            style = MaterialTheme.typography.headlineSmall
+        )
 
-            // Botones de navegación
-            Button(
-                onClick = onNavigateToCatalog,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Ver Catálogo Completo")
+        // Mostrar Sobres
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(getProductsByCategory(3)) { product ->
+                ProductItem(product = product)
             }
         }
     }
@@ -108,8 +147,7 @@ fun ProductItem(product: com.example.pokeshop.data.entities.ProductEntity) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -117,17 +155,15 @@ fun ProductItem(product: com.example.pokeshop.data.entities.ProductEntity) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen del producto - tamaño parametrizado
             Image(
                 painter = painterResource(id = androidx.core.R.drawable.ic_call_answer),
                 contentDescription = "Imagen de ${product.name}",
                 modifier = Modifier
-                    .size(80.dp) // Tamaño parametrizado
+                    .size(80.dp)
                     .padding(end = 16.dp),
                 contentScale = ContentScale.Crop
             )
 
-            // Información del producto
             Column(
                 modifier = Modifier.weight(1f)
             ) {
