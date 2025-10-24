@@ -1,6 +1,8 @@
-// viewmodel/PokeShopViewModel.kt
 package com.example.pokeshop.viewmodel
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
@@ -21,233 +23,102 @@ class PokeShopViewModel(
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    // Flows para datos
-    val allUsers = userRepository.getAllUsers()
-    val allRoles = rolRepository.getAllRoles()
-    val allCategories = categoryRepository.getAllCategories()
-    val allProducts = productRepository.getAllProducts()
-    val allSales = saleRepository.getAllSales()
-    val availableProducts = productRepository.getAvailableProducts()
-    val activeProducts = productRepository.getActiveProducts()
+    //Estado UI login
+    data class LoginUiState(                                   // Estado de la pantalla Login
+        val email: String = "",                                // Campo email
+        val pass: String = "",                                 // Campo contraseña (texto)
+        val emailError: String? = null,                        // Error de email
+        val passError: String? = null,                         // (Opcional) error de pass en login
+        val isSubmitting: Boolean = false,                     // Flag de carga
+        val canSubmit: Boolean = false,                        // Habilitar botón
+        val success: Boolean = false,                          // Resultado OK
+        val errorMsg: String? = null                           // Error global (credenciales inválidas)
+    )
+    var UiStateLogin by mutableStateOf(LoginUiState())
+        private set
 
-    // Funciones de roles
-    fun insertRol(rol: RolEntity) {
+    //Funcion para login
+    // Función para actualizar email
+    fun updateEmail(email: String) {
+        UiStateLogin = UiStateLogin.copy(
+            email = email,
+            emailError = if (email.isBlank()) "Email es requerido" else null,
+            canSubmit = validateForm(email, UiStateLogin.pass)
+        )
+    }
+
+    // Función para actualizar contraseña
+    fun updatePassword(pass: String) {
+        UiStateLogin = UiStateLogin.copy(
+            pass = pass,
+            passError = if (pass.isBlank()) "Contraseña es requerida" else null,
+            canSubmit = validateForm(UiStateLogin.email, pass)
+        )
+    }
+
+    // Validación básica del formulario
+    private fun validateForm(email: String, pass: String): Boolean {
+        return email.isNotBlank() && pass.isNotBlank()
+    }
+
+    // Función para realizar el login
+    fun loginUser(onSuccess: (isAdmin: Boolean) -> Unit) {
         viewModelScope.launch {
+            UiStateLogin = UiStateLogin.copy(isSubmitting = true, errorMsg = null)
+
             try {
-                rolRepository.insertRol(rol)
-                _uiState.value = UiState.Success("Rol agregado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al agregar rol: ${e.message}")
-            }
-        }
-    }
+                // Buscar usuario por email
+                val user = userRepository.getUserByEmail(UiStateLogin.email)
 
-    fun updateRol(rol: RolEntity) {
-        viewModelScope.launch {
-            try {
-                rolRepository.updateRol(rol)
-                _uiState.value = UiState.Success("Rol actualizado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar rol: ${e.message}")
-            }
-        }
-    }
+                if (user != null && user.password == UiStateLogin.pass) {
+                    // Verificar el rol del usuario
+                    val isAdmin = user.rolId == 1L // Asumiendo que 1 es admin
 
-    suspend fun getRolByName(name: String): RolEntity? {
-        return rolRepository.getRolByName(name)
-    }
+                    UiStateLogin = UiStateLogin.copy(
+                        success = true,
+                        isSubmitting = false
+                    )
 
-    // Funciones de usuarios
-    fun insertUser(user: UserEntity) {
-        viewModelScope.launch {
-            try {
-                userRepository.insertUser(user)
-                _uiState.value = UiState.Success("Usuario creado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al crear usuario: ${e.message}")
-            }
-        }
-    }
-
-    fun updateUser(user: UserEntity) {
-        viewModelScope.launch {
-            try {
-                userRepository.updateUser(user)
-                _uiState.value = UiState.Success("Usuario editado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al editar usuario: ${e.message}")
-            }
-        }
-    }
-
-    suspend fun getUserByEmail(email: String): UserEntity? {
-        return userRepository.getUserByEmail(email)
-    }
-
-    fun updateUserStatus(userId: Long, status: Boolean) {
-        viewModelScope.launch {
-            try {
-                userRepository.updateUserStatus(userId, status)
-                _uiState.value = UiState.Success("Estado de usuario actualizado")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar estado: ${e.message}")
-            }
-        }
-    }
-
-    // funciones de categorias
-    fun insertCategory(category: CategoryEntity) {
-        viewModelScope.launch {
-            try {
-                categoryRepository.insertCategory(category)
-                _uiState.value = UiState.Success("Categoría agregada correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al agregar categoría: ${e.message}")
-            }
-        }
-    }
-
-    fun updateCategory(category: CategoryEntity) {
-        viewModelScope.launch {
-            try {
-                categoryRepository.updateCategory(category)
-                _uiState.value = UiState.Success("Categoría actualizada correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar categoría: ${e.message}")
-            }
-        }
-    }
-
-    // funciones de productos
-    fun insertProduct(product: ProductEntity) {
-        viewModelScope.launch {
-            try {
-                productRepository.insertProduct(product)
-                _uiState.value = UiState.Success("Producto agregado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al agregar producto: ${e.message}")
-            }
-        }
-    }
-
-    fun updateProduct(product: ProductEntity) {
-        viewModelScope.launch {
-            try {
-                productRepository.updateProduct(product)
-                _uiState.value = UiState.Success("Producto actualizado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar producto: ${e.message}")
-            }
-        }
-    }
-
-    fun decreaseStock(productId: Long, quantity: Int) {
-        viewModelScope.launch {
-            try {
-                productRepository.decreaseStock(productId, quantity)
-                _uiState.value = UiState.Success("Stock actualizado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar stock: ${e.message}")
-            }
-        }
-    }
-
-    fun increaseStock(productId: Long, quantity: Int) {
-        viewModelScope.launch {
-            try {
-                productRepository.increaseStock(productId, quantity)
-                _uiState.value = UiState.Success("Stock aumentado correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al aumentar stock: ${e.message}")
-            }
-        }
-    }
-
-    fun updateProductStatus(productId: Long, status: Boolean) {
-        viewModelScope.launch {
-            try {
-                productRepository.updateProductStatus(productId, status)
-                _uiState.value = UiState.Success("Estado de producto actualizado")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar estado: ${e.message}")
-            }
-        }
-    }
-
-    fun getProductsByCategory(categoryId: Long): Flow<List<ProductEntity>> {
-        return productRepository.getProductsByCategory(categoryId)
-    }
-
-    fun searchProducts(searchQuery: String): Flow<List<ProductEntity>> {
-        return productRepository.searchProducts(searchQuery)
-    }
-
-    // funciones de ventas
-    fun insertSale(sale: SaleEntity) {
-        viewModelScope.launch {
-            try {
-                saleRepository.insertSale(sale)
-                _uiState.value = UiState.Success("Venta registrada correctamente")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al registrar venta: ${e.message}")
-            }
-        }
-    }
-
-    fun updateSaleStatus(saleId: Long, status: String) {
-        viewModelScope.launch {
-            try {
-                saleRepository.updateSaleStatus(saleId, status)
-                _uiState.value = UiState.Success("Estado de venta actualizado")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar estado: ${e.message}")
-            }
-        }
-    }
-
-    // funciones de detalle venta
-    fun insertSaleDetail(saleDetail: SaleDetailEntity) {
-        viewModelScope.launch {
-            try {
-                saleDetailRepository.insertSaleDetail(saleDetail)
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al agregar detalle: ${e.message}")
-            }
-        }
-    }
-
-    fun getSaleDetailsBySaleId(saleId: Long): Flow<List<SaleDetailEntity>> {
-        return saleDetailRepository.getSaleDetailsBySaleId(saleId)
-    }
-
-    // === OPERACIONES COMPUESTAS ===
-    fun processSale(sale: SaleEntity, saleDetails: List<SaleDetailEntity>) {
-        viewModelScope.launch {
-            try {
-                // Insertar la venta
-                val saleId = saleRepository.insertSale(sale)
-
-                // Insertar los detalles de la venta
-                saleDetails.forEach { detail ->
-                    val saleDetailWithId = detail.copy(saleId = saleId)
-                    saleDetailRepository.insertSaleDetail(saleDetailWithId)
-
-                    // Disminuir el stock de los productos
-                    productRepository.decreaseStock(detail.productId, detail.quantity)
+                    // Llamar al callback con el tipo de usuario
+                    onSuccess(isAdmin)
+                } else {
+                    UiStateLogin = UiStateLogin.copy(
+                        errorMsg = "Credenciales inválidas",
+                        isSubmitting = false,
+                        success = false
+                    )
                 }
-
-                _uiState.value = UiState.Success("Venta procesada correctamente")
             } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al procesar venta: ${e.message}")
+                UiStateLogin = UiStateLogin.copy(
+                    errorMsg = "Error: ${e.message}",
+                    isSubmitting = false,
+                    success = false
+                )
             }
         }
     }
 
-    // datos de prueba
+    // Limpiar estado
+    fun clearLoginState() {
+        UiStateLogin = LoginUiState()
+    }
+
+
+    // obtener todos los productos
+    val allProducts = productRepository.getAllProducts()
+
+    //funcion para limpiar todos los datos del viewModel
+    fun clearAllData() {
+        viewModelScope.launch {
+            productRepository.deleteAllProducts()
+        }
+    }
+
+    // datos de prueba o insert de datos
     fun insertSampleData() {
         viewModelScope.launch {
             try {
-                // Insertar roles de ejemplo
+                // Insertar roles
                 val roles = listOf(
                     RolEntity(name = "Vendedor"),
                     RolEntity(name = "Cliente")
