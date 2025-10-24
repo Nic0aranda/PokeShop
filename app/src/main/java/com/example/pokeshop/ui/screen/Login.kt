@@ -1,4 +1,3 @@
-// ui/screen/Login.kt
 package com.example.pokeshop.ui.screen
 
 import androidx.compose.foundation.background
@@ -6,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,18 +22,26 @@ fun LoginScreenVm(
     onLoginSuccess: (isAdmin: Boolean) -> Unit,
     onGoRegister: () -> Unit
 ) {
-    val state = viewModel.UiStateLogin
+    // Obtenemos el estado de la UI directamente del ViewModel.
+    val state = viewModel.uiStateLogin
 
-    // Navegar si el login fue exitoso
+    // Navega y luego limpia el estado.
     LaunchedEffect(state.success) {
         if (state.success) {
-            // Aquí necesitamos determinar si es admin o no
-            // Por ahora navegamos al home normal, luego lo ajustaremos
-            onLoginSuccess(false) // Temporal - lo ajustaremos después
+            // El `loginUser` en el ViewModel verifica si el usuario es un admin.
+            onLoginSuccess(state.errorMsg == "vendedor") // Usamos el errorMsg temporalmente para pasar el rol
+        }
+    }
+
+    // Limpia el estado del login cuando el composable se va de la pantalla.
+    // Esto es importante para que al volver, el formulario esté vacío.
+    DisposableEffect(Unit) {
+        onDispose {
             viewModel.clearLoginState()
         }
     }
 
+    // El Composable de la UI, que es "tonto" y solo muestra el estado.
     LoginScreen(
         email = state.email,
         pass = state.pass,
@@ -40,10 +49,10 @@ fun LoginScreenVm(
         passError = state.passError,
         canSubmit = state.canSubmit,
         isSubmitting = state.isSubmitting,
-        errorMsg = state.errorMsg,
-        onEmailChange = viewModel::updateEmail,
-        onPassChange = viewModel::updatePassword,
-        onSubmit = { viewModel.loginUser(onLoginSuccess) },
+        errorMsg = if (state.errorMsg != "admin") state.errorMsg else null, // No mostramos "admin" como error
+        onEmailChange = viewModel::updateLoginEmail, // CORRECTO: Llama a la función del ViewModel
+        onPassChange = viewModel::updateLoginPassword, // CORRECTO: Llama a la función del ViewModel
+        onSubmit = { viewModel.loginUser(onLoginSuccess) }, // El ViewModel se encarga de la lógica
         onGoRegister = onGoRegister
     )
 }
