@@ -90,6 +90,9 @@ fun AppNavGraph(
                 },
                 onNavigateToProfile = {
                     navController.navigate(Route.Profile.path)
+                },
+                onNavigateToProductDetail = { productId ->
+                    navController.navigate(Route.ProductDetail.createRoute(productId))
                 }
             )
         }
@@ -102,7 +105,6 @@ fun AppNavGraph(
             CatalogScreen(
                 viewModel = viewModel,
                 onProductClick = { productId ->
-                    // Navega a la pantalla de detalle del producto
                     navController.navigate(Route.ProductDetail.createRoute(productId))
                 },
                 onNavigateToHome = {
@@ -136,6 +138,9 @@ fun AppNavGraph(
                 viewModel = viewModel,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToCheckout = {
+                    navController.navigate(Route.Checkout.path)
                 }
             )
         }

@@ -15,5 +15,5 @@ sealed class Route(val path: String) {
 
     object Cart : Route("cart")
 
-
+    object Checkout : Route("checkout")
 }

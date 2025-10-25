@@ -252,21 +252,74 @@ class PokeShopViewModel(
 
     fun removeFromCart(productId: Int) {
         viewModelScope.launch {
+            var removedItemName = ""
             _cartUiState.update { currentState ->
+                // Guardamos el nombre del producto antes de removerlo
+                removedItemName = currentState.items.find { it.productId == productId }?.name ?: "Producto"
                 val newItems = currentState.items.filterNot { it.productId == productId }
                 val newTotal = newItems.sumOf { it.price * it.quantity }
                 currentState.copy(items = newItems, total = newTotal)
             }
-            _uiState.update { it.copy(userMessage = "Producto removido del carrito") }
+            // BIEN: Usamos el snackbar para una notificación limpia y temporal
+            snackbarHostState.showSnackbar(
+                message = "$removedItemName removido del carrito",
+                duration = SnackbarDuration.Short
+            )
         }
     }
 
     fun clearCart() {
         viewModelScope.launch {
-            _cartUiState.value = CartUiState()
-            _uiState.update { it.copy(userMessage = "Carrito vaciado") }
+            // Solo limpiamos el estado si realmente hay items, para no mostrar el snackbar innecesariamente
+            if (_cartUiState.value.items.isNotEmpty()) {
+                _cartUiState.value = CartUiState()
+                // BIEN: Usamos el snackbar para confirmar la acción
+                snackbarHostState.showSnackbar(
+                    message = "El carrito ha sido vaciado",
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
     }
+
+    fun increaseCartItemQuantity(productId: Int) {
+        _cartUiState.update { currentState ->
+            val newItems = currentState.items.map { item ->
+                if (item.productId == productId) {
+                    // Aquí podrías verificar el stock si lo tuvieras disponible
+                    item.copy(quantity = item.quantity + 1)
+                } else {
+                    item
+                }
+            }
+            val newTotal = newItems.sumOf { it.price * it.quantity }
+            currentState.copy(items = newItems, total = newTotal)
+        }
+    }
+
+    fun decreaseCartItemQuantity(productId: Int) {
+        _cartUiState.update { currentState ->
+            val itemToDecrease = currentState.items.find { it.productId == productId }
+
+            val newItems = if (itemToDecrease != null && itemToDecrease.quantity > 1) {
+                // Si la cantidad es > 1, simplemente la reducimos
+                currentState.items.map { item ->
+                    if (item.productId == productId) {
+                        item.copy(quantity = item.quantity - 1)
+                    } else {
+                        item
+                    }
+                }
+            } else {
+                // Si la cantidad es 1, eliminamos el item del carrito
+                currentState.items.filterNot { it.productId == productId }
+            }
+
+            val newTotal = newItems.sumOf { it.price * it.quantity }
+            currentState.copy(items = newItems, total = newTotal)
+        }
+    }
+
 
 
     fun messageShown() {

@@ -30,7 +30,9 @@ import kotlinx.coroutines.launch
 fun HomePS(
     viewModel: PokeShopViewModel,
     onNavigateToCatalog: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    // 1. AÑADIDO: Recibe la lambda para navegar al detalle del producto
+    onNavigateToProductDetail: (Int) -> Unit
 ) {
     val catalogState by viewModel.catalogUiState.collectAsState()
     val products = catalogState.products
@@ -80,7 +82,9 @@ fun HomePS(
         ) { innerPadding ->
             HomeContent(
                 products = products,
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.padding(innerPadding),
+                // 2. AÑADIDO: Pasa la lambda de navegación al HomeContent
+                onProductClick = onNavigateToProductDetail
             )
         }
     }
@@ -89,14 +93,15 @@ fun HomePS(
 @Composable
 fun HomeContent(
     products: List<com.example.pokeshop.data.entities.ProductEntity>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // 3. AÑADIDO: Recibe la lambda desde HomePS
+    onProductClick: (Int) -> Unit
 ) {
 
     fun getProductsByCategory(categoryId: Long): List<com.example.pokeshop.data.entities.ProductEntity> {
         return products.filter { it.categoryId == categoryId }
     }
 
-    //Utilizo una lazycolumn para poder hacer scroll
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -104,31 +109,15 @@ fun HomeContent(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Titulo de productos destacados
+        // ... (otros items)
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Productos Destacados",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-            }
-        }
-
-        // Título de Booster Packs
-        item {
-            Text(
-                text = "Booster Packs",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
-        // Lista de Booster Packs"
+        // Lista de Booster Packs
         items(getProductsByCategory(2)) { product ->
-            ProductItem(product = product)
+            // 4. AÑADIDO: Pasa la lambda al ProductItem con el ID del producto
+            ProductItem(
+                product = product,
+                onProductClick = { onProductClick(product.id.toInt()) }
+            )
         }
 
         // Título Sobres
@@ -141,14 +130,25 @@ fun HomeContent(
 
         // Lista de Sobres
         items(getProductsByCategory(3)) { product ->
-            ProductItem(product = product)
+            // 5. AÑADIDO: Haz lo mismo para la otra lista
+            ProductItem(
+                product = product,
+                onProductClick = { onProductClick(product.id.toInt()) }
+            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class) // Recomendado para el Card clickeable
 @Composable
-fun ProductItem(product: com.example.pokeshop.data.entities.ProductEntity) {
+fun ProductItem(
+    product: com.example.pokeshop.data.entities.ProductEntity,
+    // 6. CORREGIDO: La sintaxis correcta para una lambda que no devuelve nada (Unit)
+    onProductClick: () -> Unit
+) {
     Card(
+        // 7. AÑADIDO: Usa la lambda en el Card para hacerlo clickeable
+        onClick = onProductClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
@@ -161,6 +161,7 @@ fun ProductItem(product: com.example.pokeshop.data.entities.ProductEntity) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
+                // Ojo: Asegúrate que este recurso existe y es el correcto
                 painter = painterResource(id = androidx.core.R.drawable.ic_call_answer),
                 contentDescription = "Imagen de ${product.name}",
                 modifier = Modifier
