@@ -1,6 +1,8 @@
 package com.example.pokeshop.viewmodel
 
 import androidx.compose.animation.core.copy
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -79,11 +81,15 @@ data class CartUiState(
     val total: Double = 0.0 // El precio total, calculado
 )
 
+data class ProductDetailUiState(
+    val isLoading: Boolean = false,
+    val product: ProductEntity? = null,
+    val error: String? = null
+)
+
+
 /** Estados generales de la UI para operaciones (ej. carga, éxito, error). */
 sealed class UiState {
-    object Loading : UiState()
-    data class Success(val message: String) : UiState()
-    data class Error(val message: String) : UiState()
     object Idle : UiState()
 }
 
@@ -113,6 +119,10 @@ class PokeShopViewModel(
     private val _cartUiState = MutableStateFlow(CartUiState())
     val cartUiState: StateFlow<CartUiState> = _cartUiState.asStateFlow()
 
+    //Estados para detalle de producto
+    private val _productDetailUiState = MutableStateFlow(ProductDetailUiState())
+    val productDetailUiState: StateFlow<ProductDetailUiState> = _productDetailUiState.asStateFlow()
+    val snackbarHostState = SnackbarHostState()
 
     // Estados para los formularios de autenticación
     var uiStateLogin by mutableStateOf(LoginUiState())
@@ -146,7 +156,7 @@ class PokeShopViewModel(
                 _catalogUiState.update { it.copy(categories = categories) }
             } catch (e: Exception) {
                 // Manejar error si no se pueden cargar las categorías
-                _catalogUiState.update { it.copy(isLoading = false, /* userMessage = "Error al cargar categorías" */) }
+                _catalogUiState.update { it.copy(isLoading = false /* userMessage = "Error al cargar categorías" */) }
             }
         }
     }
@@ -171,7 +181,7 @@ class PokeShopViewModel(
                 // Devolvemos solo la lista filtrada de productos
                 filteredProducts
             }.catch { e ->
-                _catalogUiState.update { it.copy(isLoading = false, /* userMessage = "Error al filtrar productos" */) }
+                _catalogUiState.update { it.copy(isLoading = false /* userMessage = "Error al filtrar productos" */) }
                 emit(emptyList()) // Emitir lista vacía en caso de error
             }.collect { filteredProducts ->
                 // Actualizamos el estado SOLO con la nueva lista de productos y marcamos como "no cargando"
@@ -195,21 +205,14 @@ class PokeShopViewModel(
 
     // --- 2. LÓGICA DEL CARRITO Y DETALLE DE PRODUCTOS ---
 
-    // (El resto de tu código desde aquí no necesita cambios)
-
     fun getProductById(productId: Long) {
         viewModelScope.launch {
-            _uiState.update { it.copy(productDetail = null, isLoading = true) }
+            _productDetailUiState.value = ProductDetailUiState(isLoading = true)
             try {
-                val product = productRepository.getProductById(productId)
-                _uiState.update { it.copy(productDetail = product, isLoading = false) }
+                val product = productRepository.getProductById(productId) //
+                _productDetailUiState.value = ProductDetailUiState(product = product)
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        userMessage = "Error al cargar producto: ${e.message}"
-                    )
-                }
+                _productDetailUiState.value = ProductDetailUiState(error = "Error al cargar el producto.")
             }
         }
     }
@@ -239,7 +242,11 @@ class PokeShopViewModel(
                 val newTotal = newItems.sumOf { it.price * it.quantity }
                 currentState.copy(items = newItems, total = newTotal)
             }
-            _uiState.update { it.copy(userMessage = "${product.name} añadido al carrito") }
+
+            snackbarHostState.showSnackbar(
+                message = "${product.name} fue añadido al carrito.",
+                duration = SnackbarDuration.Short
+            )
         }
     }
 

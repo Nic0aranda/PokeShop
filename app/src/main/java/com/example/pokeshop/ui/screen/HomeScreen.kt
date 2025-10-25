@@ -91,52 +91,57 @@ fun HomeContent(
     products: List<com.example.pokeshop.data.entities.ProductEntity>,
     modifier: Modifier = Modifier
 ) {
+
     fun getProductsByCategory(categoryId: Long): List<com.example.pokeshop.data.entities.ProductEntity> {
         return products.filter { it.categoryId == categoryId }
     }
 
-    Column(
+    //Utilizo una lazycolumn para poder hacer scroll
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
+        // Titulo de productos destacados
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Productos Destacados",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
+        }
+
+        // Título de Booster Packs
+        item {
             Text(
-                text = "Productos Destacados",
+                text = "Booster Packs",
                 style = MaterialTheme.typography.headlineSmall
             )
         }
 
-        Text(
-            text = "Booster Packs",
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        // Mostrar BoosterPacks
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(getProductsByCategory(2)) { product ->
-                ProductItem(product = product)
-            }
+        // Lista de Booster Packs"
+        items(getProductsByCategory(2)) { product ->
+            ProductItem(product = product)
         }
 
-        Text(
-            text = "Sobres",
-            style = MaterialTheme.typography.headlineSmall
-        )
+        // Título Sobres
+        item {
+            Text(
+                text = "Sobres",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
 
-        // Mostrar Sobres
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(getProductsByCategory(3)) { product ->
-                ProductItem(product = product)
-            }
+        // Lista de Sobres
+        items(getProductsByCategory(3)) { product ->
+            ProductItem(product = product)
         }
     }
 }

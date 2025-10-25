@@ -24,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.example.pokeshop.data.entities.CategoryEntity
 import com.example.pokeshop.data.entities.ProductEntity
 import com.example.pokeshop.ui.components.DrawerItem

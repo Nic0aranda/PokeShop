@@ -158,7 +158,10 @@ fun AppNavGraph(
 
             ProductDetailScreen(
                 viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
+                productId = productId?.toInt() ?: 0,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
     }
