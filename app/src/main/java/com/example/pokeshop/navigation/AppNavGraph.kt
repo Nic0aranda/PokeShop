@@ -1,14 +1,22 @@
 package com.example.pokeshop.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.pokeshop.ui.screen.Registro
+import androidx.navigation.navArgument
+import com.example.pokeshop.ui.screen.CartScreen      // Asegúrate de importar esta pantalla
+import com.example.pokeshop.ui.screen.CatalogScreen
 import com.example.pokeshop.ui.screen.HomePS
 import com.example.pokeshop.ui.screen.Inicio
 import com.example.pokeshop.ui.screen.LoginScreenVm
+import com.example.pokeshop.ui.screen.ProductDetailScreen // Asegúrate de importar esta pantalla
+import com.example.pokeshop.ui.screen.ProfileScreen
+import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
+
 
 @Composable
 fun AppNavGraph(
@@ -21,12 +29,10 @@ fun AppNavGraph(
     ) {
         composable(Route.Inicio.path) {
             Inicio(
-                viewModel = viewModel,
                 onNavigateToLogin = {
                     navController.navigate(Route.Login.path)
                 },
                 onNavigateToRegister = {
-                    // La navegación al registro ya está definida, perfecto.
                     navController.navigate(Route.Register.path)
                 }
             )
@@ -37,19 +43,17 @@ fun AppNavGraph(
                 viewModel = viewModel,
                 onLoginSuccess = { isAdmin ->
                     val destination = if (isAdmin) {
-                        // Usamos la ruta definida en tu objeto Route
                         Route.AdminHome.path
                     } else {
                         Route.Home.path
                     }
                     navController.navigate(destination) {
-                        // Limpiamos el backstack hasta la pantalla de inicio
-                        // para que el usuario no pueda volver al login con el botón de atrás.
+                        // Limpiamos el backstack hasta el inicio para que no pueda volver al login.
                         popUpTo(Route.Inicio.path) { inclusive = true }
                     }
                 },
                 onGoRegister = {
-                    // Navega a registro y evita múltiples copias en el backstack
+                    // Navega a registro y evita múltiples copias en el backstack.
                     navController.navigate(Route.Register.path) {
                         launchSingleTop = true
                     }
@@ -57,17 +61,14 @@ fun AppNavGraph(
             )
         }
 
-        // --- AÑADIR LA RUTA PARA LA PANTALLA DE REGISTRO ---
         composable(Route.Register.path) {
             Registro(
                 viewModel = viewModel,
                 onRegisterSuccess = {
-                    // Después de un registro exitoso, enviamos al usuario al Login
-                    // para que inicie sesión con su nueva cuenta.
+                    // Después de un registro exitoso, enviamos al usuario al Login.
                     navController.navigate(Route.Login.path) {
-                        // Limpiamos la pantalla de registro del backstack
+                        // Limpiamos la pantalla de registro del backstack.
                         popUpTo(Route.Register.path) { inclusive = true }
-                        // Asegura que no se abra una nueva pantalla de login si ya existe una
                         launchSingleTop = true
                     }
                 },
@@ -93,5 +94,73 @@ fun AppNavGraph(
             )
         }
 
+        composable(Route.AdminHome.path) {
+            // Aquí iría tu pantalla para administradores.
+        }
+
+        composable(Route.Catalog.path) {
+            CatalogScreen(
+                viewModel = viewModel,
+                onProductClick = { productId ->
+                    // Navega a la pantalla de detalle del producto
+                    navController.navigate(Route.ProductDetail.createRoute(productId))
+                },
+                onNavigateToHome = {
+                    navController.navigate(Route.Home.path)
+                },
+                onNavigateToCart = {
+                    navController.navigate(Route.Cart.path)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Route.Profile.path)
+                }
+            )
+        }
+
+        composable(Route.Profile.path) {
+            ProfileScreen(
+                username = viewModel.uiStateLogin.email,
+                email = viewModel.uiStateLogin.email,
+                onLogout = {
+                    navController.navigate(Route.Login.path) {
+                    }
+                },
+                onNavigateBack = {
+                navController.popBackStack()
+            }
+            )
+        }
+
+        composable(Route.Cart.path) {
+            CartScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Route.ProductDetail.path,
+            // El tipo de argumento debe ser Long para que coincida con la Entidad
+            arguments = listOf(navArgument("productId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            // Es más seguro usar getLong y manejar la posible excepción o nulidad.
+            val productId = backStackEntry.arguments?.getLong("productId")
+
+            // LaunchedEffect asegura que la carga de datos se llama solo una vez
+            // cuando el productId cambia.
+            LaunchedEffect(productId) {
+                if (productId != null) {
+                    viewModel.getProductById(productId)
+                }
+            }
+
+            ProductDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
+
