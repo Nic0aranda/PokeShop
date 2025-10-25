@@ -1,14 +1,18 @@
 package com.example.pokeshop.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.example.pokeshop.ui.screen.CartScreen      // Asegúrate de importar esta pantalla
+import com.example.pokeshop.ui.screen.CatalogScreen
 import com.example.pokeshop.ui.screen.HomePS
 import com.example.pokeshop.ui.screen.Inicio
 import com.example.pokeshop.ui.screen.LoginScreenVm
+import com.example.pokeshop.ui.screen.ProductDetailScreen // Asegúrate de importar esta pantalla
 import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
@@ -90,33 +94,73 @@ fun AppNavGraph(
             )
         }
 
-        // --- AÑADE AQUÍ EL COMPOSABLE PARA ADMINHOME ---
         composable(Route.AdminHome.path) {
-            // Ejemplo: AdminHomeScreen(viewModel = viewModel)
+            // Aquí iría tu pantalla para administradores.
         }
 
-        // --- AÑADE AQUÍ EL COMPOSABLE PARA CATALOG ---
         composable(Route.Catalog.path) {
-            // Ejemplo: CatalogScreen(viewModel = viewModel)
+            CatalogScreen(
+                viewModel = viewModel,
+                onProductClick = { productId ->
+                    // Navega a la pantalla de detalle del producto
+                    navController.navigate(Route.ProductDetail.createRoute(productId))
+                },
+                onNavigateToHome = {
+                    navController.navigate(Route.Home.path)
+                },
+                onNavigateToCart = {
+                    navController.navigate(Route.Cart.path)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Route.Profile.path)
+                }
+            )
         }
 
-        composable(Route.Profile.path) { // Usar la ruta del objeto Route
-            // Recolecta el estado del usuario de forma segura con el ciclo de vida
-            val userState by viewModel.userState.collectAsStateWithLifecycle()
-
+        composable(Route.Profile.path) {
             ProfileScreen(
-                username = userState.username, // Pasa el nombre
-                email = userState.email,       // Pasa el email
+                username = viewModel.uiStateLogin.email,
+                email = viewModel.uiStateLogin.email,
                 onLogout = {
-                    // Lógica para cerrar sesión
-                    viewModel.logout()
-                    navController.navigate(Route.Login.path) { // Usar la ruta del objeto Route
-                        // Limpia la pila de navegación para que el usuario no pueda volver atrás.
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                        launchSingleTop = true // Evita apilar pantallas de login.
+                    navController.navigate(Route.Login.path) {
                     }
+                },
+                onNavigateBack = {
+                navController.popBackStack()
+            }
+            )
+        }
+
+        composable(Route.Cart.path) {
+            CartScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
+            )
+        }
+
+        composable(
+            route = Route.ProductDetail.path,
+            // El tipo de argumento debe ser Long para que coincida con la Entidad
+            arguments = listOf(navArgument("productId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            // Es más seguro usar getLong y manejar la posible excepción o nulidad.
+            val productId = backStackEntry.arguments?.getLong("productId")
+
+            // LaunchedEffect asegura que la carga de datos se llama solo una vez
+            // cuando el productId cambia.
+            LaunchedEffect(productId) {
+                if (productId != null) {
+                    viewModel.getProductById(productId)
+                }
+            }
+
+            ProductDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
 }
+

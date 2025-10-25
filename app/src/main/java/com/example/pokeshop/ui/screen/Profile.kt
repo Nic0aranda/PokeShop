@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -29,12 +30,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.pokeshop.R // Asegúrate de que tu paquete R sea el correcto
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     // Pasa los datos del usuario y un callback para el logout si lo necesitas
     username: String,
     email: String,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateBack: () -> Unit
 ) {
     // 1. Estado para almacenar la URI de la imagen seleccionada
     var imageUri by remember { mutableStateOf<Uri?>(null) }
@@ -47,10 +50,26 @@ fun ProfileScreen(
             imageUri = uri
         }
     )
-
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Mi Perfil") },
+                // --- 2. AÑADE EL BOTÓN DE NAVEGACIÓN ---
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) { // Llama a la nueva función
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver atrás"
+                        )
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .padding(paddingValues)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -119,6 +138,7 @@ fun ProfileScreen(
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
         ) {
             Text("Cerrar Sesión")
+        }
         }
     }
 }

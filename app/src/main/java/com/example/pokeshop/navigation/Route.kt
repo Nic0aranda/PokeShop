@@ -8,4 +8,12 @@ sealed class Route(val path: String) {
     object AdminHome : Route("admin_home")
     object Catalog : Route("catalog")
     object Profile : Route("profile")
+
+    object ProductDetail : Route("product/{productId}") { // Ruta para el detalle con argumento
+        fun createRoute(productId: Int) = "product/$productId"
+    }
+
+    object Cart : Route("cart")
+
+
 }

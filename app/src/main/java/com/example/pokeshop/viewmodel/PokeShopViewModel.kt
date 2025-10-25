@@ -1,5 +1,6 @@
 package com.example.pokeshop.viewmodel
 
+import androidx.compose.animation.core.copy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,6 +12,81 @@ import com.example.pokeshop.domain.validation.Validation
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+// --- CLASES DE ESTADO DE LA UI ---
+data class PokeShopUiState(
+
+    val isLoading: Boolean = true,
+
+    // Detalle de Producto
+    val productDetail: ProductEntity? = null,
+
+    // Sesión de Usuario
+    val currentUser: UserEntity? = null,
+    val isAdmin: Boolean = false,
+
+    // Mensajes Generales (para Snackbars o Toasts)
+    val userMessage: String? = null
+)
+
+data class LoginUiState(
+    val email: String = "",
+    val pass: String = "",
+    val emailError: String? = null,
+    val passError: String? = null,
+    val isSubmitting: Boolean = false,
+    val canSubmit: Boolean = false,
+    val success: Boolean = false,
+    val errorMsg: String? = null
+)
+
+data class RegisterUiState(
+    val username: String = "",
+    val email: String = "",
+    val pass: String = "",
+    val confirmPass: String = "",
+    val usernameError: String? = null,
+    val emailError: String? = null,
+    val passError: String? = null,
+    val confirmPassError: String? = null,
+    val isSubmitting: Boolean = false,
+    val canSubmit: Boolean = false,
+    val success: Boolean = false,
+    val errorMsg: String? = null
+)
+
+data class UserState(
+    val username: String = "",
+    val email: String = ""
+)
+
+data class CatalogUiState(
+    val isLoading: Boolean = true,
+    val products: List<ProductEntity> = emptyList(),
+    val categories: List<CategoryEntity> = emptyList(),
+    val searchQuery: String = "",
+    val selectedCategoryId: Long? = null
+)
+
+data class CartItem(
+    val productId: Int,
+    val name: String,
+    val price: Double,
+    var quantity: Int,
+)
+
+data class CartUiState(
+    val items: List<CartItem> = emptyList(), // La lista de ítems en el carrito
+    val total: Double = 0.0 // El precio total, calculado
+)
+
+/** Estados generales de la UI para operaciones (ej. carga, éxito, error). */
+sealed class UiState {
+    object Loading : UiState()
+    data class Success(val message: String) : UiState()
+    data class Error(val message: String) : UiState()
+    object Idle : UiState()
+}
+
 class PokeShopViewModel(
     private val userRepository: UserRepository,
     private val rolRepository: RolRepository,
@@ -19,84 +95,199 @@ class PokeShopViewModel(
     private val saleRepository: SaleRepository,
     private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
+// --- ESTADOS DE LA UI (STATEFLOWS & MUTABLE STATES) ---
 
-    // --- ESTADO DEL USUARIO (MODIFICADO) ---
-    // Se usa StateFlow para una mejor gestión del estado a través de la app.
-    data class UserState(
-        val username: String = "",
-        val email: String = "",
-        val isLoggedIn: Boolean = false,
-        val isAdmin: Boolean = false
-    )
+    // Estado principal de la aplicación
+    private val _uiState = MutableStateFlow(PokeShopUiState())
+    val uiState: StateFlow<PokeShopUiState> = _uiState.asStateFlow()
 
-    // _userState es privado y mutable, solo el ViewModel puede cambiarlo.
+    // Estado específico para el perfil de usuario (consumido por AppNavGraph)
     private val _userState = MutableStateFlow(UserState())
-    // userState es público e inmutable, las Vistas solo pueden leerlo.
     val userState: StateFlow<UserState> = _userState.asStateFlow()
 
+    // Estado para el catálogo
+    private val _catalogUiState = MutableStateFlow(CatalogUiState())
+    val catalogUiState: StateFlow<CatalogUiState> = _catalogUiState.asStateFlow()
 
-    // Estados de la UI generales
-    private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    //Estado para carrito
+    private val _cartUiState = MutableStateFlow(CartUiState())
+    val cartUiState: StateFlow<CartUiState> = _cartUiState.asStateFlow()
 
-    //region === ESTADO Y LÓGICA DE LOGIN (MODIFICADO) ===
 
-    data class LoginUiState(
-        val email: String = "",
-        val pass: String = "",
-        val emailError: String? = null,
-        val passError: String? = null,
-        val isSubmitting: Boolean = false,
-        val canSubmit: Boolean = false,
-        val success: Boolean = false,
-        val errorMsg: String? = null
-    )
+    // Estados para los formularios de autenticación
     var uiStateLogin by mutableStateOf(LoginUiState())
         private set
+    var uiStateRegister by mutableStateOf(RegisterUiState())
+        private set
 
-    fun updateLoginEmail(email: String) {
-        val isValid = Validation.isLoginEmailValid(email)
-        uiStateLogin = uiStateLogin.copy(
-            email = email,
-            emailError = if (!isValid && email.isNotBlank()) "Email no válido" else null,
-            canSubmit = validateLoginForm(email, uiStateLogin.pass)
-        )
+    // Estado general para operaciones (ej. eliminar datos)
+    private val _generalUiState = MutableStateFlow<UiState>(UiState.Idle)
+    val generalUiState: StateFlow<UiState> = _generalUiState.asStateFlow()
+
+    // --- INICIALIZACIÓN ---
+
+    init {
+        // CORRECCIÓN: Separamos la lógica de carga para evitar repeticiones
+        loadCategories()
+        observeAndFilterProducts()
     }
 
-    fun updateLoginPassword(pass: String) {
-        uiStateLogin = uiStateLogin.copy(
-            pass = pass,
-            passError = if (pass.isBlank()) "Contraseña es requerida" else null,
-            canSubmit = validateLoginForm(uiStateLogin.email, pass)
-        )
+    // --- 1. LÓGICA DE CARGA Y FILTRADO DEL CATÁLOGO (CORREGIDA) ---
+
+    /**
+     * Carga las categorías UNA SOLA VEZ al iniciar el ViewModel.
+     */
+    private fun loadCategories() {
+        viewModelScope.launch {
+            _catalogUiState.update { it.copy(isLoading = true) }
+            try {
+                // Usamos .first() para tomar solo la primera emisión de la base de datos
+                val categories = categoryRepository.getAllCategories().first()
+                _catalogUiState.update { it.copy(categories = categories) }
+            } catch (e: Exception) {
+                // Manejar error si no se pueden cargar las categorías
+                _catalogUiState.update { it.copy(isLoading = false, /* userMessage = "Error al cargar categorías" */) }
+            }
+        }
     }
 
-    private fun validateLoginForm(email: String, pass: String): Boolean {
-        return Validation.isLoginEmailValid(email) && Validation.isLoginPasswordValid(pass)
+    /**
+     * Observa los productos, la búsqueda y el filtro de categoría de forma reactiva.
+     */
+    private fun observeAndFilterProducts() {
+        viewModelScope.launch {
+            // Flujos que queremos observar para el filtrado
+            val productsFlow = productRepository.getAllProducts()
+            val searchQueryFlow = _catalogUiState.map { it.searchQuery }.distinctUntilChanged()
+            val selectedCategoryFlow = _catalogUiState.map { it.selectedCategoryId }.distinctUntilChanged()
+
+            combine(productsFlow, searchQueryFlow, selectedCategoryFlow) { products, query, categoryId ->
+                // Filtramos los productos en memoria
+                val filteredProducts = products.filter { product ->
+                    val matchesCategory = categoryId == null || product.categoryId == categoryId
+                    val matchesSearch = query.isBlank() || product.name.contains(query, ignoreCase = true)
+                    matchesCategory && matchesSearch
+                }
+                // Devolvemos solo la lista filtrada de productos
+                filteredProducts
+            }.catch { e ->
+                _catalogUiState.update { it.copy(isLoading = false, /* userMessage = "Error al filtrar productos" */) }
+                emit(emptyList()) // Emitir lista vacía en caso de error
+            }.collect { filteredProducts ->
+                // Actualizamos el estado SOLO con la nueva lista de productos y marcamos como "no cargando"
+                _catalogUiState.update {
+                    it.copy(
+                        products = filteredProducts,
+                        isLoading = false
+                    )
+                }
+            }
+        }
     }
 
+    fun onSearchQueryChanged(query: String) {
+        _catalogUiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun onCategorySelected(categoryId: Long?) {
+        _catalogUiState.update { it.copy(selectedCategoryId = categoryId) }
+    }
+
+    // --- 2. LÓGICA DEL CARRITO Y DETALLE DE PRODUCTOS ---
+
+    // (El resto de tu código desde aquí no necesita cambios)
+
+    fun getProductById(productId: Long) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(productDetail = null, isLoading = true) }
+            try {
+                val product = productRepository.getProductById(productId)
+                _uiState.update { it.copy(productDetail = product, isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        userMessage = "Error al cargar producto: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun addToCart(product: ProductEntity) {
+        viewModelScope.launch {
+            _cartUiState.update { currentState ->
+                val existingItem = currentState.items.find { it.productId == product.id.toInt() }
+
+                val newItems = if (existingItem != null) {
+                    currentState.items.map { item ->
+                        if (item.productId == product.id.toInt()) {
+                            item.copy(quantity = item.quantity + 1)
+                        } else {
+                            item
+                        }
+                    }
+                } else {
+                    currentState.items + CartItem(
+                        productId = product.id.toInt(),
+                        name = product.name,
+                        price = product.price,
+                        quantity = 1
+                    )
+                }
+
+                val newTotal = newItems.sumOf { it.price * it.quantity }
+                currentState.copy(items = newItems, total = newTotal)
+            }
+            _uiState.update { it.copy(userMessage = "${product.name} añadido al carrito") }
+        }
+    }
+
+    fun removeFromCart(productId: Int) {
+        viewModelScope.launch {
+            _cartUiState.update { currentState ->
+                val newItems = currentState.items.filterNot { it.productId == productId }
+                val newTotal = newItems.sumOf { it.price * it.quantity }
+                currentState.copy(items = newItems, total = newTotal)
+            }
+            _uiState.update { it.copy(userMessage = "Producto removido del carrito") }
+        }
+    }
+
+    fun clearCart() {
+        viewModelScope.launch {
+            _cartUiState.value = CartUiState()
+            _uiState.update { it.copy(userMessage = "Carrito vaciado") }
+        }
+    }
+
+
+    fun messageShown() {
+        _uiState.update { it.copy(userMessage = null) }
+    }
+
+    // --- 3. LÓGICA DE AUTENTICACIÓN Y USUARIO ---
+
+    // ... (El resto del ViewModel se mantiene igual)
+    // Login
     fun loginUser(onSuccess: (isAdmin: Boolean) -> Unit) {
         viewModelScope.launch {
             uiStateLogin = uiStateLogin.copy(isSubmitting = true, errorMsg = null)
-
             try {
                 val user = userRepository.getUserByEmail(uiStateLogin.email)
-
                 if (user != null && user.password == uiStateLogin.pass) {
                     val isAdmin = user.rolId == 1L // Asumiendo que 1 es admin
 
-                    // --- ACTUALIZACIÓN CLAVE ---
-                    // Actualizamos el estado global del usuario aquí.
-                    _userState.value = UserState(
-                        username = user.names,
-                        email = user.email,
-                        isLoggedIn = true,
-                        isAdmin = isAdmin
-                    )
+                    // Actualiza el estado principal con la información del usuario
+                    _uiState.update { it.copy(currentUser = user, isAdmin = isAdmin) }
+
+                    // Actualiza el estado específico del usuario para ProfileScreen
+                    _userState.update {
+                        it.copy(username = user.names, email = user.email)
+                    }
 
                     uiStateLogin = uiStateLogin.copy(success = true, isSubmitting = false)
-                    onSuccess(isAdmin) // Llama al callback para navegar
-
+                    onSuccess(isAdmin)
                 } else {
                     uiStateLogin = uiStateLogin.copy(
                         errorMsg = "Credenciales inválidas",
@@ -114,30 +305,79 @@ class PokeShopViewModel(
         }
     }
 
-    fun clearLoginState() {
-        uiStateLogin = LoginUiState()
+    // Registro
+    fun registerUser(onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val usernameError = Validation.validateUsername(uiStateRegister.username)
+            val emailError = Validation.validateEmail(uiStateRegister.email)
+            val passError = Validation.validatePassword(uiStateRegister.pass)
+            val confirmPassError = Validation.validateConfirmPassword(uiStateRegister.pass, uiStateRegister.confirmPass)
+
+            uiStateRegister = uiStateRegister.copy(
+                usernameError = usernameError, emailError = emailError,
+                passError = passError, confirmPassError = confirmPassError
+            )
+
+            if (listOf(usernameError, emailError, passError, confirmPassError).any { it != null }) return@launch
+
+            uiStateRegister = uiStateRegister.copy(isSubmitting = true, errorMsg = null)
+            try {
+                if (userRepository.getUserByEmail(uiStateRegister.email) != null) {
+                    uiStateRegister = uiStateRegister.copy(emailError = "El correo ya está registrado.", isSubmitting = false)
+                    return@launch
+                }
+
+                val newUser = UserEntity(
+                    names = uiStateRegister.username, lastNames = "", email = uiStateRegister.email,
+                    password = uiStateRegister.pass, status = true, rolId = 2 // Asumiendo que 2 es cliente
+                )
+                userRepository.insertUser(newUser)
+                uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
+                onSuccess()
+            } catch (e: Exception) {
+                uiStateRegister = uiStateRegister.copy(errorMsg = "Error en el registro: ${e.message}", isSubmitting = false)
+            }
+        }
     }
 
-    //endregion
+    // Logout
+    fun logout() {
+        viewModelScope.launch {
+            // Limpia el estado principal
+            _uiState.update {
+                it.copy(
+                    currentUser = null,
+                    isAdmin = false,
+                    userMessage = "Sesión cerrada"
+                )
+            }
+            // Limpia el estado del perfil de usuario
+            _userState.value = UserState()
+            _catalogUiState.value = CatalogUiState()
+            _cartUiState.value = CartUiState() // También limpiar el carrito
+            // Limpia el estado del formulario de login
+            clearLoginState()
+        }
+    }
 
-    //region === ESTADO Y LÓGICA DE REGISTRO ===
+    // --- Métodos de actualización de formularios (Login y Registro) ---
 
-    data class RegisterUiState(
-        val username: String = "",
-        val email: String = "",
-        val pass: String = "",
-        val confirmPass: String = "",
-        val usernameError: String? = null,
-        val emailError: String? = null,
-        val passError: String? = null,
-        val confirmPassError: String? = null,
-        val isSubmitting: Boolean = false,
-        val canSubmit: Boolean = false,
-        val success: Boolean = false,
-        val errorMsg: String? = null
-    )
-    var uiStateRegister by mutableStateOf(RegisterUiState())
-        private set
+    fun updateLoginEmail(email: String) {
+        val isValid = Validation.isLoginEmailValid(email)
+        uiStateLogin = uiStateLogin.copy(
+            email = email,
+            emailError = if (!isValid && email.isNotBlank()) "Email no válido" else null,
+            canSubmit = validateLoginForm(email, uiStateLogin.pass)
+        )
+    }
+
+    fun updateLoginPassword(pass: String) {
+        uiStateLogin = uiStateLogin.copy(
+            pass = pass,
+            passError = if (pass.isBlank()) "La contraseña es requerida" else null,
+            canSubmit = validateLoginForm(uiStateLogin.email, pass)
+        )
+    }
 
     fun updateRegisterUsername(username: String) {
         uiStateRegister = uiStateRegister.copy(username = username, usernameError = null)
@@ -159,138 +399,23 @@ class PokeShopViewModel(
         validateRegisterForm()
     }
 
-    private fun validateRegisterForm() {
-        val state = uiStateRegister
-        val canSubmit = state.username.isNotBlank() &&
-                state.email.isNotBlank() &&
-                state.pass.isNotBlank() &&
-                state.confirmPass.isNotBlank()
-        uiStateRegister = uiStateRegister.copy(canSubmit = canSubmit)
-    }
-
-    fun registerUser() {
-        viewModelScope.launch {
-            val usernameError = Validation.validateUsername(uiStateRegister.username)
-            val emailError = Validation.validateEmail(uiStateRegister.email)
-            val passError = Validation.validatePassword(uiStateRegister.pass)
-            val confirmPassError = Validation.validateConfirmPassword(uiStateRegister.pass, uiStateRegister.confirmPass)
-
-            uiStateRegister = uiStateRegister.copy(
-                usernameError = usernameError,
-                emailError = emailError,
-                passError = passError,
-                confirmPassError = confirmPassError
-            )
-
-            val hasErrors = listOf(usernameError, emailError, passError, confirmPassError).any { it != null }
-            if (hasErrors) return@launch
-
-            uiStateRegister = uiStateRegister.copy(isSubmitting = true, errorMsg = null)
-
-            try {
-                val existingUser = userRepository.getUserByEmail(uiStateRegister.email)
-                if (existingUser != null) {
-                    uiStateRegister = uiStateRegister.copy(
-                        emailError = "El correo electrónico ya está registrado.",
-                        isSubmitting = false
-                    )
-                    return@launch
-                }
-
-                val newUser = UserEntity(
-                    names = uiStateRegister.username,
-                    lastNames = "",
-                    email = uiStateRegister.email,
-                    password = uiStateRegister.pass,
-                    status = true,
-                    rolId = 2
-                )
-                userRepository.insertUser(newUser)
-
-                uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
-
-            } catch (e: Exception) {
-                uiStateRegister = uiStateRegister.copy(
-                    errorMsg = "Error en el registro: ${e.message}",
-                    isSubmitting = false
-                )
-            }
-        }
+    fun clearLoginState() {
+        uiStateLogin = LoginUiState()
     }
 
     fun clearRegisterState() {
         uiStateRegister = RegisterUiState()
     }
-    //endregion
 
-    //region === LÓGICA DE PERFIL Y SESIÓN (AÑADIDO) ===
-
-    /**
-     * Cierra la sesión del usuario actual.
-     * Restablece el estado del usuario a sus valores predeterminados.
-     */
-    fun logout() {
-        viewModelScope.launch {
-            // Aquí podrías añadir lógica para limpiar tokens o preferencias si los tuvieras.
-            _userState.value = UserState() // Restablece el estado del usuario
-            clearLoginState() // Opcional: Limpia el estado del formulario de login
-        }
+    private fun validateLoginForm(email: String, pass: String): Boolean {
+        return Validation.isLoginEmailValid(email) && Validation.isLoginPasswordValid(pass)
     }
 
-    //endregion
-
-    // obtener todos los productos
-    val allProducts = productRepository.getAllProducts()
-
-    //funcion para limpiar todos los datos del viewModel
-    fun clearAllData() {
-        viewModelScope.launch {
-            productRepository.deleteAllProducts()
-        }
-    }
-
-    // datos de prueba o insert de datos
-    fun insertSampleData() {
-        viewModelScope.launch {
-            try {
-                val roles = listOf(RolEntity(name = "Vendedor"), RolEntity(name = "Cliente"))
-                roles.forEach { rolRepository.insertRol(it) }
-
-                val categories = listOf(
-                    CategoryEntity(name = "Otro tipo de producto"),
-                    CategoryEntity(name = "Booster packs"),
-                    CategoryEntity(name = "Sobres"),
-                    CategoryEntity(name = "Cajas")
-                )
-                categories.forEach { categoryRepository.insertCategory(it) }
-
-                val products = listOf(
-                    ProductEntity(name = "Booster Pack Escarlata y Púrpura", description = "Sobre de 10 cartas de la nueva generación", price = 1200.0, stock = 25, categoryId = 2),
-                    ProductEntity(name = "Booster Pack Espada y Escudo", description = "Sobre de 10 cartas de la generación Galar", price = 1000.0, stock = 30, categoryId = 2),
-                    ProductEntity(name = "Sobre Promocional Pikachu", description = "Sobre especial con carta promocional de Pikachu", price = 800.0, stock = 40, categoryId = 3),
-                    ProductEntity(name = "Caja Elite Trainer", description = "Caja completa con 8 boosters, dados y accesorios", price = 12000.0, stock = 8, categoryId = 4)
-                    // ... otros productos ...
-                )
-                products.forEach { productRepository.insertProduct(it) }
-
-                val users = listOf(
-                    UserEntity(names = "Misty", lastNames = "Waterflower", email = "misty@pokemon.com", password = "growlithe123", status = true, rolId = 2),
-                    UserEntity(names = "Brock", lastNames = "Takeshi", email = "brock@pokemon.com", password = "vendedor2025", status = true, rolId = 1)
-                )
-                users.forEach { userRepository.insertUser(it) }
-
-                _uiState.value = UiState.Success("Datos de cartas Pokémon insertados")
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al insertar datos: ${e.message}")
-            }
-        }
-    }
-
-    // Estados de la UI
-    sealed class UiState {
-        object Loading : UiState()
-        data class Success(val message: String) : UiState()
-        data class Error(val message: String) : UiState()
-        object Idle : UiState()
+    private fun validateRegisterForm() {
+        val state = uiStateRegister
+        uiStateRegister = uiStateRegister.copy(
+            canSubmit = state.username.isNotBlank() && state.email.isNotBlank() &&
+                    state.pass.isNotBlank() && state.confirmPass.isNotBlank()
+        )
     }
 }

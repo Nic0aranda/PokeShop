@@ -2,6 +2,7 @@ package com.example.pokeshop.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -20,7 +21,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PokeTopBar(
     title: String,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {}
 ) {
     TopAppBar(
         title = {
@@ -40,6 +42,7 @@ fun PokeTopBar(
                     contentDescription = "Abrir menú lateral"
                 )
             }
-        }
+        },
+        actions = actions
     )
 }

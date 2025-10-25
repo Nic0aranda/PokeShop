@@ -32,7 +32,8 @@ fun HomePS(
     onNavigateToCatalog: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
-    val products by viewModel.allProducts.collectAsState(initial = emptyList())
+    val catalogState by viewModel.catalogUiState.collectAsState()
+    val products = catalogState.products
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
