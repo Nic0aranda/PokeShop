@@ -1,6 +1,5 @@
 package com.example.pokeshop.viewmodel
 
-import androidx.compose.animation.core.copy
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
@@ -14,7 +13,6 @@ import com.example.pokeshop.domain.validation.Validation
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-// --- CLASES DE ESTADO DE LA UI ---
 data class PokeShopUiState(
 
     val isLoading: Boolean = true,
@@ -26,7 +24,7 @@ data class PokeShopUiState(
     val currentUser: UserEntity? = null,
     val isAdmin: Boolean = false,
 
-    // Mensajes Generales (para Snackbars o Toasts)
+    // Mensajes Generales
     val userMessage: String? = null
 )
 
@@ -87,8 +85,6 @@ data class ProductDetailUiState(
     val error: String? = null
 )
 
-
-/** Estados generales de la UI para operaciones (ej. carga, éxito, error). */
 sealed class UiState {
     object Idle : UiState()
 }
@@ -101,7 +97,6 @@ class PokeShopViewModel(
     private val saleRepository: SaleRepository,
     private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
-// --- ESTADOS DE LA UI (STATEFLOWS & MUTABLE STATES) ---
 
     // Estado principal de la aplicación
     private val _uiState = MutableStateFlow(PokeShopUiState())
@@ -129,10 +124,6 @@ class PokeShopViewModel(
         private set
     var uiStateRegister by mutableStateOf(RegisterUiState())
         private set
-
-    // Estado general para operaciones (ej. eliminar datos)
-    private val _generalUiState = MutableStateFlow<UiState>(UiState.Idle)
-    val generalUiState: StateFlow<UiState> = _generalUiState.asStateFlow()
 
     // --- INICIALIZACIÓN ---
 
@@ -320,23 +311,16 @@ class PokeShopViewModel(
         }
     }
 
-
-
-    fun messageShown() {
-        _uiState.update { it.copy(userMessage = null) }
-    }
-
     // --- 3. LÓGICA DE AUTENTICACIÓN Y USUARIO ---
 
-    // ... (El resto del ViewModel se mantiene igual)
     // Login
-    fun loginUser(onSuccess: (isAdmin: Boolean) -> Unit) {
+    fun loginUser(onSuccess: (route: String) -> Unit) {
         viewModelScope.launch {
             uiStateLogin = uiStateLogin.copy(isSubmitting = true, errorMsg = null)
             try {
                 val user = userRepository.getUserByEmail(uiStateLogin.email)
                 if (user != null && user.password == uiStateLogin.pass) {
-                    val isAdmin = user.rolId == 1L // Asumiendo que 1 es admin
+                    val isAdmin = user.rolId == 1L // como el id de rol 1 es admin
 
                     // Actualiza el estado principal con la información del usuario
                     _uiState.update { it.copy(currentUser = user, isAdmin = isAdmin) }
@@ -347,7 +331,11 @@ class PokeShopViewModel(
                     }
 
                     uiStateLogin = uiStateLogin.copy(success = true, isSubmitting = false)
-                    onSuccess(isAdmin)
+
+                    // Determinamos la ruta de destino según el rol del usuario si es admin (admin_home) o no (catalog)
+                    val destinationRoute = if (isAdmin) "admin_home" else "catalog"
+                    onSuccess(destinationRoute)
+
                 } else {
                     uiStateLogin = uiStateLogin.copy(
                         errorMsg = "Credenciales inválidas",

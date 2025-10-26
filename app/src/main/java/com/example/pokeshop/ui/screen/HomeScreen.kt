@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.pokeshop.R
 import com.example.pokeshop.ui.components.DrawerItem
 import com.example.pokeshop.ui.components.PokeDrawer
 import com.example.pokeshop.ui.components.PokeTopBar
@@ -31,7 +32,7 @@ fun HomePS(
     viewModel: PokeShopViewModel,
     onNavigateToCatalog: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    // 1. AÑADIDO: Recibe la lambda para navegar al detalle del producto
+    //sirve para navegar a la pagina de cada producto segun su id
     onNavigateToProductDetail: (Int) -> Unit
 ) {
     val catalogState by viewModel.catalogUiState.collectAsState()
@@ -83,7 +84,6 @@ fun HomePS(
             HomeContent(
                 products = products,
                 modifier = Modifier.padding(innerPadding),
-                // 2. AÑADIDO: Pasa la lambda de navegación al HomeContent
                 onProductClick = onNavigateToProductDetail
             )
         }
@@ -94,7 +94,6 @@ fun HomePS(
 fun HomeContent(
     products: List<com.example.pokeshop.data.entities.ProductEntity>,
     modifier: Modifier = Modifier,
-    // 3. AÑADIDO: Recibe la lambda desde HomePS
     onProductClick: (Int) -> Unit
 ) {
 
@@ -109,11 +108,14 @@ fun HomeContent(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ... (otros items)
-
+        item {
+            Text(
+                text = "Booster Packs",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
         // Lista de Booster Packs
         items(getProductsByCategory(2)) { product ->
-            // 4. AÑADIDO: Pasa la lambda al ProductItem con el ID del producto
             ProductItem(
                 product = product,
                 onProductClick = { onProductClick(product.id.toInt()) }
@@ -130,7 +132,6 @@ fun HomeContent(
 
         // Lista de Sobres
         items(getProductsByCategory(3)) { product ->
-            // 5. AÑADIDO: Haz lo mismo para la otra lista
             ProductItem(
                 product = product,
                 onProductClick = { onProductClick(product.id.toInt()) }
@@ -143,11 +144,9 @@ fun HomeContent(
 @Composable
 fun ProductItem(
     product: com.example.pokeshop.data.entities.ProductEntity,
-    // 6. CORREGIDO: La sintaxis correcta para una lambda que no devuelve nada (Unit)
     onProductClick: () -> Unit
 ) {
     Card(
-        // 7. AÑADIDO: Usa la lambda en el Card para hacerlo clickeable
         onClick = onProductClick,
         modifier = Modifier
             .fillMaxWidth()
@@ -161,8 +160,7 @@ fun ProductItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                // Ojo: Asegúrate que este recurso existe y es el correcto
-                painter = painterResource(id = androidx.core.R.drawable.ic_call_answer),
+                painter = painterResource(id = R.drawable.ic_launcher_background),
                 contentDescription = "Imagen de ${product.name}",
                 modifier = Modifier
                     .size(80.dp)

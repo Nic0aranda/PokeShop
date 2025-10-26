@@ -120,7 +120,7 @@ fun CartItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = painterResource(id = R.drawable.ic_launcher_background), // CAMBIAR ESTO
+                painter = painterResource(id = R.drawable.ic_launcher_background),
                 contentDescription = cartItem.name,
                 modifier = Modifier.size(64.dp)
             )

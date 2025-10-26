@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.pokeshop.ui.screen.CartScreen      // Asegúrate de importar esta pantalla
 import com.example.pokeshop.ui.screen.CatalogScreen
+import com.example.pokeshop.ui.screen.CheckoutScreen
 import com.example.pokeshop.ui.screen.HomePS
 import com.example.pokeshop.ui.screen.Inicio
 import com.example.pokeshop.ui.screen.LoginScreenVm
@@ -16,6 +17,7 @@ import com.example.pokeshop.ui.screen.ProductDetailScreen // Asegúrate de impor
 import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
+import androidx.compose.runtime.collectAsState
 
 
 @Composable
@@ -121,8 +123,8 @@ fun AppNavGraph(
 
         composable(Route.Profile.path) {
             ProfileScreen(
-                username = viewModel.uiStateLogin.email,
-                email = viewModel.uiStateLogin.email,
+                username = viewModel.userState.collectAsState().value.username,
+                email = viewModel.userState.collectAsState().value.email,
                 onLogout = {
                     navController.navigate(Route.Login.path) {
                     }
@@ -141,6 +143,14 @@ fun AppNavGraph(
                 },
                 onNavigateToCheckout = {
                     navController.navigate(Route.Checkout.path)
+                }
+            )
+        }
+
+        composable(Route.Checkout.path) {
+            CheckoutScreen(
+                onNavigateToHome = {
+                    navController.navigate(Route.Home.path)
                 }
             )
         }
