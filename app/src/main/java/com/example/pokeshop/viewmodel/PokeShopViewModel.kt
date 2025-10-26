@@ -10,21 +10,18 @@ import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
 import com.example.pokeshop.data.repository.*
 import com.example.pokeshop.domain.validation.Validation
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+// --- 1. DEFINICIONES DE ESTADOS (Data Classes) ---
+
 data class PokeShopUiState(
-
     val isLoading: Boolean = true,
-
-    // Detalle de Producto
     val productDetail: ProductEntity? = null,
-
-    // Sesión de Usuario
     val currentUser: UserEntity? = null,
     val isAdmin: Boolean = false,
-
-    // Mensajes Generales
     val userMessage: String? = null
 )
 
@@ -75,8 +72,8 @@ data class CartItem(
 )
 
 data class CartUiState(
-    val items: List<CartItem> = emptyList(), // La lista de ítems en el carrito
-    val total: Double = 0.0 // El precio total, calculado
+    val items: List<CartItem> = emptyList(),
+    val total: Double = 0.0
 )
 
 data class ProductDetailUiState(
@@ -89,6 +86,8 @@ sealed class UiState {
     object Idle : UiState()
 }
 
+// --- 2. VIEWMODEL PRINCIPAL ---
+
 class PokeShopViewModel(
     private val userRepository: UserRepository,
     private val rolRepository: RolRepository,
@@ -98,88 +97,115 @@ class PokeShopViewModel(
     private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
 
-    // Estado principal de la aplicación
+    // --- 3. ESTADOS (StateFlows y MutableState) ---
+
+    // Estado global de la app
     private val _uiState = MutableStateFlow(PokeShopUiState())
     val uiState: StateFlow<PokeShopUiState> = _uiState.asStateFlow()
 
-    // Estado específico para el perfil de usuario (consumido por AppNavGraph)
+    // Estado del perfil de usuario
     private val _userState = MutableStateFlow(UserState())
     val userState: StateFlow<UserState> = _userState.asStateFlow()
 
-    // Estado para el catálogo
+    // Estado del catálogo
     private val _catalogUiState = MutableStateFlow(CatalogUiState())
     val catalogUiState: StateFlow<CatalogUiState> = _catalogUiState.asStateFlow()
 
-    //Estado para carrito
+    // Estado del carrito
     private val _cartUiState = MutableStateFlow(CartUiState())
     val cartUiState: StateFlow<CartUiState> = _cartUiState.asStateFlow()
 
-    //Estados para detalle de producto
+    // Estado del detalle de producto
     private val _productDetailUiState = MutableStateFlow(ProductDetailUiState())
     val productDetailUiState: StateFlow<ProductDetailUiState> = _productDetailUiState.asStateFlow()
-    val snackbarHostState = SnackbarHostState()
 
-    // Estados para los formularios de autenticación
+    // Estados para formularios de login y registro
     var uiStateLogin by mutableStateOf(LoginUiState())
         private set
     var uiStateRegister by mutableStateOf(RegisterUiState())
         private set
 
-    // --- INICIALIZACIÓN ---
+    // Estado para notificaciones
+    val snackbarHostState = SnackbarHostState()
+
+    // Flag para controlar la carga inicial única
+    private var isDataLoaded = false
+
+    // --- 4. BLOQUE DE INICIALIZACIÓN ---
 
     init {
-        // CORRECCIÓN: Separamos la lógica de carga para evitar repeticiones
-        loadCategories()
+        // Llama a las funciones de configuración inicial.
+        loadInitialData()
         observeAndFilterProducts()
     }
 
-    // --- 1. LÓGICA DE CARGA Y FILTRADO DEL CATÁLOGO (CORREGIDA) ---
+    // --- 5. LÓGICA DE CATÁLOGO Y PRODUCTOS ---
 
     /**
-     * Carga las categorías UNA SOLA VEZ al iniciar el ViewModel.
+     * Carga los datos iniciales (categorías y la primera lista de productos) una sola vez.
+     * Usa un flag 'isDataLoaded' para evitar recargas innecesarias (ej. al rotar la pantalla).
      */
-    private fun loadCategories() {
+    private fun loadInitialData() {
+        // Evita la recarga si los datos ya se han cargado.
+        if (isDataLoaded) return
+
         viewModelScope.launch {
             _catalogUiState.update { it.copy(isLoading = true) }
             try {
-                // Usamos .first() para tomar solo la primera emisión de la base de datos
-                val categories = categoryRepository.getAllCategories().first()
-                _catalogUiState.update { it.copy(categories = categories) }
+                // Ejecuta ambas cargas en paralelo y espera a que terminen.
+                coroutineScope {
+                    val categoriesDeferred = async { categoryRepository.getAllCategories().first() }
+                    val productsDeferred = async { productRepository.getAllProducts().first() }
+
+                    val categories = categoriesDeferred.await()
+                    val products = productsDeferred.await()
+
+                    _catalogUiState.update {
+                        it.copy(
+                            categories = categories,
+                            products = products, // Carga la lista completa inicial
+                            isLoading = false
+                        )
+                    }
+                }
+                // Marca los datos como cargados para evitar futuras ejecuciones.
+                isDataLoaded = true
+
             } catch (e: Exception) {
-                // Manejar error si no se pueden cargar las categorías
-                _catalogUiState.update { it.copy(isLoading = false /* userMessage = "Error al cargar categorías" */) }
+                _catalogUiState.update { it.copy(isLoading = false) }
+                // Podrías mostrar un error aquí si lo necesitas
+                // snackbarHostState.showSnackbar("Error al cargar datos iniciales")
             }
         }
     }
 
     /**
-     * Observa los productos, la búsqueda y el filtro de categoría de forma reactiva.
+     * Observa de forma reactiva los cambios en la búsqueda y el filtro de categoría.
+     * Combina los flujos para recalcular la lista de productos a mostrar.
      */
     private fun observeAndFilterProducts() {
         viewModelScope.launch {
-            // Flujos que queremos observar para el filtrado
-            val productsFlow = productRepository.getAllProducts()
-            val searchQueryFlow = _catalogUiState.map { it.searchQuery }.distinctUntilChanged()
-            val selectedCategoryFlow = _catalogUiState.map { it.selectedCategoryId }.distinctUntilChanged()
-
-            combine(productsFlow, searchQueryFlow, selectedCategoryFlow) { products, query, categoryId ->
-                // Filtramos los productos en memoria
-                val filteredProducts = products.filter { product ->
+            combine(
+                productRepository.getAllProducts(), // Fuente de verdad para los productos
+                _catalogUiState.map { it.searchQuery }.distinctUntilChanged(),
+                _catalogUiState.map { it.selectedCategoryId }.distinctUntilChanged()
+            ) { products, query, categoryId ->
+                // Filtra los productos en memoria según los criterios actuales.
+                products.filter { product ->
                     val matchesCategory = categoryId == null || product.categoryId == categoryId
                     val matchesSearch = query.isBlank() || product.name.contains(query, ignoreCase = true)
                     matchesCategory && matchesSearch
                 }
-                // Devolvemos solo la lista filtrada de productos
-                filteredProducts
-            }.catch { e ->
-                _catalogUiState.update { it.copy(isLoading = false /* userMessage = "Error al filtrar productos" */) }
-                emit(emptyList()) // Emitir lista vacía en caso de error
+            }.catch {
+                // En caso de error en el flujo, actualiza el estado y emite una lista vacía.
+                _catalogUiState.update { it.copy(isLoading = false) }
+                emit(emptyList())
             }.collect { filteredProducts ->
-                // Actualizamos el estado SOLO con la nueva lista de productos y marcamos como "no cargando"
+                // Actualiza el estado de la UI solo con la lista de productos filtrada.
                 _catalogUiState.update {
                     it.copy(
                         products = filteredProducts,
-                        isLoading = false
+                        isLoading = false // Apaga el loading tras el filtro/actualización.
                     )
                 }
             }
@@ -194,13 +220,11 @@ class PokeShopViewModel(
         _catalogUiState.update { it.copy(selectedCategoryId = categoryId) }
     }
 
-    // --- 2. LÓGICA DEL CARRITO Y DETALLE DE PRODUCTOS ---
-
     fun getProductById(productId: Long) {
         viewModelScope.launch {
             _productDetailUiState.value = ProductDetailUiState(isLoading = true)
             try {
-                val product = productRepository.getProductById(productId) //
+                val product = productRepository.getProductById(productId)
                 _productDetailUiState.value = ProductDetailUiState(product = product)
             } catch (e: Exception) {
                 _productDetailUiState.value = ProductDetailUiState(error = "Error al cargar el producto.")
@@ -208,18 +232,15 @@ class PokeShopViewModel(
         }
     }
 
+    // --- 6. LÓGICA DEL CARRITO ---
+
     fun addToCart(product: ProductEntity) {
         viewModelScope.launch {
             _cartUiState.update { currentState ->
                 val existingItem = currentState.items.find { it.productId == product.id.toInt() }
-
                 val newItems = if (existingItem != null) {
                     currentState.items.map { item ->
-                        if (item.productId == product.id.toInt()) {
-                            item.copy(quantity = item.quantity + 1)
-                        } else {
-                            item
-                        }
+                        if (item.productId == product.id.toInt()) item.copy(quantity = item.quantity + 1) else item
                     }
                 } else {
                     currentState.items + CartItem(
@@ -229,11 +250,9 @@ class PokeShopViewModel(
                         quantity = 1
                     )
                 }
-
                 val newTotal = newItems.sumOf { it.price * it.quantity }
                 currentState.copy(items = newItems, total = newTotal)
             }
-
             snackbarHostState.showSnackbar(
                 message = "${product.name} fue añadido al carrito.",
                 duration = SnackbarDuration.Short
@@ -245,13 +264,11 @@ class PokeShopViewModel(
         viewModelScope.launch {
             var removedItemName = ""
             _cartUiState.update { currentState ->
-                // Guardamos el nombre del producto antes de removerlo
                 removedItemName = currentState.items.find { it.productId == productId }?.name ?: "Producto"
                 val newItems = currentState.items.filterNot { it.productId == productId }
                 val newTotal = newItems.sumOf { it.price * it.quantity }
                 currentState.copy(items = newItems, total = newTotal)
             }
-            // BIEN: Usamos el snackbar para una notificación limpia y temporal
             snackbarHostState.showSnackbar(
                 message = "$removedItemName removido del carrito",
                 duration = SnackbarDuration.Short
@@ -261,10 +278,8 @@ class PokeShopViewModel(
 
     fun clearCart() {
         viewModelScope.launch {
-            // Solo limpiamos el estado si realmente hay items, para no mostrar el snackbar innecesariamente
             if (_cartUiState.value.items.isNotEmpty()) {
                 _cartUiState.value = CartUiState()
-                // BIEN: Usamos el snackbar para confirmar la acción
                 snackbarHostState.showSnackbar(
                     message = "El carrito ha sido vaciado",
                     duration = SnackbarDuration.Short
@@ -277,7 +292,6 @@ class PokeShopViewModel(
         _cartUiState.update { currentState ->
             val newItems = currentState.items.map { item ->
                 if (item.productId == productId) {
-                    // Aquí podrías verificar el stock si lo tuvieras disponible
                     item.copy(quantity = item.quantity + 1)
                 } else {
                     item
@@ -291,9 +305,7 @@ class PokeShopViewModel(
     fun decreaseCartItemQuantity(productId: Int) {
         _cartUiState.update { currentState ->
             val itemToDecrease = currentState.items.find { it.productId == productId }
-
             val newItems = if (itemToDecrease != null && itemToDecrease.quantity > 1) {
-                // Si la cantidad es > 1, simplemente la reducimos
                 currentState.items.map { item ->
                     if (item.productId == productId) {
                         item.copy(quantity = item.quantity - 1)
@@ -302,16 +314,14 @@ class PokeShopViewModel(
                     }
                 }
             } else {
-                // Si la cantidad es 1, eliminamos el item del carrito
                 currentState.items.filterNot { it.productId == productId }
             }
-
             val newTotal = newItems.sumOf { it.price * it.quantity }
             currentState.copy(items = newItems, total = newTotal)
         }
     }
 
-    // --- 3. LÓGICA DE AUTENTICACIÓN Y USUARIO ---
+    // --- 7. LÓGICA DE AUTENTICACIÓN Y USUARIO ---
 
     // Login
     fun loginUser(onSuccess: (route: String) -> Unit) {
@@ -320,19 +330,13 @@ class PokeShopViewModel(
             try {
                 val user = userRepository.getUserByEmail(uiStateLogin.email)
                 if (user != null && user.password == uiStateLogin.pass) {
-                    val isAdmin = user.rolId == 1L // como el id de rol 1 es admin
+                    val isAdmin = user.rolId == 1L
 
-                    // Actualiza el estado principal con la información del usuario
                     _uiState.update { it.copy(currentUser = user, isAdmin = isAdmin) }
+                    _userState.update { it.copy(username = user.names, email = user.email) }
 
-                    // Actualiza el estado específico del usuario para ProfileScreen
-                    _userState.update {
-                        it.copy(username = user.names, email = user.email)
-                    }
-
-                    uiStateLogin = uiStateLogin.copy(success = true, isSubmitting = false)
-
-                    // Determinamos la ruta de destino según el rol del usuario si es admin (admin_home) o no (catalog)
+                    uiStateLogin = uiStateLogin.copy(success = true,
+                        errorMsg = if (isAdmin) "vendedor" else "")
                     val destinationRoute = if (isAdmin) "admin_home" else "catalog"
                     onSuccess(destinationRoute)
 
@@ -376,8 +380,12 @@ class PokeShopViewModel(
                 }
 
                 val newUser = UserEntity(
-                    names = uiStateRegister.username, lastNames = "", email = uiStateRegister.email,
-                    password = uiStateRegister.pass, status = true, rolId = 2 // Asumiendo que 2 es cliente
+                    names = uiStateRegister.username,
+                    lastNames = "",
+                    email = uiStateRegister.email,
+                    password = uiStateRegister.pass,
+                    status = true,
+                    rolId = 2 // Cliente
                 )
                 userRepository.insertUser(newUser)
                 uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
@@ -385,26 +393,6 @@ class PokeShopViewModel(
             } catch (e: Exception) {
                 uiStateRegister = uiStateRegister.copy(errorMsg = "Error en el registro: ${e.message}", isSubmitting = false)
             }
-        }
-    }
-
-    // Logout
-    fun logout() {
-        viewModelScope.launch {
-            // Limpia el estado principal
-            _uiState.update {
-                it.copy(
-                    currentUser = null,
-                    isAdmin = false,
-                    userMessage = "Sesión cerrada"
-                )
-            }
-            // Limpia el estado del perfil de usuario
-            _userState.value = UserState()
-            _catalogUiState.value = CatalogUiState()
-            _cartUiState.value = CartUiState() // También limpiar el carrito
-            // Limpia el estado del formulario de login
-            clearLoginState()
         }
     }
 

@@ -29,6 +29,7 @@ fun LoginScreenVm(
     LaunchedEffect(state.success) {
         if (state.success) {
             // El `loginUser` en el ViewModel verifica si el usuario es un admin.
+            // La información de si es admin o no, se guarda en `errorMsg` temporalmente.
             onLoginSuccess(state.errorMsg == "vendedor")
         }
     }
@@ -48,10 +49,10 @@ fun LoginScreenVm(
         passError = state.passError,
         canSubmit = state.canSubmit,
         isSubmitting = state.isSubmitting,
-        errorMsg = if (state.errorMsg != "admin") state.errorMsg else null, // No mostramos "admin" como error
-        onEmailChange = viewModel::updateLoginEmail, // CORRECTO: Llama a la función del ViewModel
-        onPassChange = viewModel::updateLoginPassword, // CORRECTO: Llama a la función del ViewModel
-        onSubmit = { viewModel.loginUser(onLoginSuccess) }, // El ViewModel se encarga de la lógica
+        errorMsg = if (state.errorMsg != "vendedor") state.errorMsg else null, // No mostramos "vendedor" como error
+        onEmailChange = viewModel::updateLoginEmail,
+        onPassChange = viewModel::updateLoginPassword,
+        onSubmit = { viewModel.loginUser { onLoginSuccess(it == "admin_home") } },
         onGoRegister = onGoRegister
     )
 }
