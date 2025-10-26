@@ -18,6 +18,10 @@ import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
 import androidx.compose.runtime.collectAsState
+import com.example.pokeshop.ui.screen.AdminHomeScreen
+import com.example.pokeshop.ui.screen.CategoryEditScreen
+import com.example.pokeshop.ui.screen.CategoryManagementScreenVm
+import com.example.pokeshop.ui.screen.CreateCategoryScreen
 
 
 @Composable
@@ -100,8 +104,69 @@ fun AppNavGraph(
         }
 
         composable(Route.AdminHome.path) {
-            // Aquí iría tu pantalla para administradores.
+            AdminHomeScreen(
+                onGoToCategories = {
+                    navController.navigate(Route.CategoryManagement.path)
+                },
+                onGoToProducts = {
+                    navController.navigate(Route.ProductManagement.path)
+                },
+                onLogout = {
+                    navController.navigate(Route.Login.path) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
+
+        composable (Route.CategoryManagement.path) {
+            CategoryManagementScreenVm(
+                viewModel = viewModel,
+                onBackPress = {
+                    navController.popBackStack()
+                },
+                onGoToEditCategory = { categoryId ->
+                    navController.navigate(Route.EditCategory.createRoute(categoryId))
+                },
+                onGoToCreateCategory = {
+                    navController.navigate(Route.CreateCategory.path)
+                }
+            )
+        }
+
+        composable(route = Route.EditCategory.path,
+            arguments = listOf(navArgument("categoryId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            // Se obtiene el argumento de la ruta de forma segura.
+            val categoryId = backStackEntry.arguments?.getLong("categoryId")
+
+            // Carga los datos solo una vez o si el ID cambia.
+            LaunchedEffect(categoryId) {
+                // Asegurarse de que el ID no es nulo y es válido.
+                if (categoryId != null && categoryId != 0L) {
+                    viewModel.loadCategoryForEdit(categoryId)
+                }
+            }
+            CategoryEditScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Route.CreateCategory.path) {
+            CreateCategoryScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
 
         composable(Route.Catalog.path) {
             CatalogScreen(

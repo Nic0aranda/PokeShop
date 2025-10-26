@@ -82,26 +82,48 @@ data class ProductDetailUiState(
     val error: String? = null
 )
 
-sealed class UiState {
-    object Idle : UiState()
-}
+data class Category(
+    val id: Long,
+    val name: String
+)
+
+data class CategoryManagementUiState(
+    val isLoading: Boolean = true,
+    val categories: List<Category> = emptyList()
+)
+
+data class CategoryEditUiState(
+    val isLoading: Boolean = true,
+    val category: Category? = null,
+    val categoryName: String = "",
+    val nameError: String? = null,
+    val canBeSaved: Boolean = false,
+    val isSaving: Boolean = false,
+    val saveSuccess: Boolean = false,
+    val errorMessage: String? = null
+)
+
+data class CategoryCreateUiState(
+    val categoryName: String = "",
+    val nameError: String? = null,
+    val canBeCreated: Boolean = false,
+    val isCreating: Boolean = false,
+    val createSuccess: Boolean = false,
+    val errorMessage: String? = null
+)
 
 // --- 2. VIEWMODEL PRINCIPAL ---
 
 class PokeShopViewModel(
     private val userRepository: UserRepository,
-    private val rolRepository: RolRepository,
     private val categoryRepository: CategoryRepository,
-    private val productRepository: ProductRepository,
-    private val saleRepository: SaleRepository,
-    private val saleDetailRepository: SaleDetailRepository
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     // --- 3. ESTADOS (StateFlows y MutableState) ---
 
     // Estado global de la app
     private val _uiState = MutableStateFlow(PokeShopUiState())
-    val uiState: StateFlow<PokeShopUiState> = _uiState.asStateFlow()
 
     // Estado del perfil de usuario
     private val _userState = MutableStateFlow(UserState())
@@ -118,6 +140,17 @@ class PokeShopViewModel(
     // Estado del detalle de producto
     private val _productDetailUiState = MutableStateFlow(ProductDetailUiState())
     val productDetailUiState: StateFlow<ProductDetailUiState> = _productDetailUiState.asStateFlow()
+
+    //Estado para categorias
+    private val _categoryManagementUiState = MutableStateFlow(CategoryManagementUiState())
+    val categoryManagementUiState: StateFlow<CategoryManagementUiState> = _categoryManagementUiState.asStateFlow()
+
+    private val _categoryEditUiState = MutableStateFlow(CategoryEditUiState())
+    val categoryEditUiState: StateFlow<CategoryEditUiState> = _categoryEditUiState.asStateFlow()
+
+    private val _categoryCreateUiState = MutableStateFlow(CategoryCreateUiState())
+    val categoryCreateUiState: StateFlow<CategoryCreateUiState> = _categoryCreateUiState.asStateFlow()
+
 
     // Estados para formularios de login y registro
     var uiStateLogin by mutableStateOf(LoginUiState())
@@ -173,16 +206,10 @@ class PokeShopViewModel(
 
             } catch (e: Exception) {
                 _catalogUiState.update { it.copy(isLoading = false) }
-                // Podrías mostrar un error aquí si lo necesitas
-                // snackbarHostState.showSnackbar("Error al cargar datos iniciales")
             }
         }
     }
 
-    /**
-     * Observa de forma reactiva los cambios en la búsqueda y el filtro de categoría.
-     * Combina los flujos para recalcular la lista de productos a mostrar.
-     */
     private fun observeAndFilterProducts() {
         viewModelScope.launch {
             combine(
@@ -212,6 +239,30 @@ class PokeShopViewModel(
         }
     }
 
+    fun loadManagedCategories() {
+        viewModelScope.launch {
+            // 1. Pone el estado en 'cargando'
+            _categoryManagementUiState.update { it.copy(isLoading = true) }
+            try {
+                // 2. Escucha el flujo de datos del repositorio
+                categoryRepository.getAllCategories().collect { categoryEntities ->
+                    // 3. Mapea las entidades de BD (CategoryEntity) al modelo de UI (Category)
+                    val categoriesModel = categoryEntities.map { entity ->
+                        Category(id = entity.id, name = entity.name)
+                    }
+                    // 4. Actualiza el estado con la nueva lista y desactiva 'cargando'
+                    _categoryManagementUiState.update {
+                        it.copy(categories = categoriesModel, isLoading = false)
+                    }
+                }
+            } catch (e: Exception) {
+                // En caso de error, simplemente desactiva 'cargando'
+                _categoryManagementUiState.update { it.copy(isLoading = false) }
+                // Aquí podrías también enviar un mensaje de error a la UI
+            }
+        }
+    }
+
     fun onSearchQueryChanged(query: String) {
         _catalogUiState.update { it.copy(searchQuery = query) }
     }
@@ -232,6 +283,125 @@ class PokeShopViewModel(
         }
     }
 
+    //Logica para el cambio de categorias
+    fun loadCategoryForEdit(categoryId: Long) {
+        viewModelScope.launch {
+            _categoryEditUiState.value = CategoryEditUiState(isLoading = true) // Resetea y muestra carga
+            try {
+                val categoryEntity = categoryRepository.getCategoryById(categoryId) // Asume que esta función existe en tu repo
+                if (categoryEntity != null) {
+                    val categoryModel = Category(id = categoryEntity.id, name = categoryEntity.name)
+                    _categoryEditUiState.update {
+                        it.copy(
+                            isLoading = false,
+                            category = categoryModel,
+                            categoryName = categoryModel.name // Rellena el campo de texto
+                        )
+                    }
+                } else {
+                    // La categoría no se encontró
+                    _categoryEditUiState.update {
+                        it.copy(isLoading = false, errorMessage = "Categoría no encontrada.")
+                    }
+                }
+            } catch (e: Exception) {
+                _categoryEditUiState.update {
+                    it.copy(isLoading = false, errorMessage = "Error al cargar la categoría.")
+                }
+            }
+        }
+    }
+
+    fun onCategoryNameChange(newName: String) {
+        _categoryEditUiState.update {
+            it.copy(
+                categoryName = newName,
+                // Habilita el guardado solo si el nombre no está vacío y es diferente al original
+                canBeSaved = newName.isNotBlank() && newName != it.category?.name
+            )
+        }
+    }
+
+    fun saveCategoryChanges() {
+        viewModelScope.launch {
+            val currentState = _categoryEditUiState.value
+
+            // 1. Validar que realmente hay una categoría cargada
+            if (currentState.category == null) {
+                _categoryEditUiState.update { it.copy(errorMessage = "No se ha cargado ninguna categoría para guardar.") }
+                return@launch
+            }
+
+            // 2. Poner el estado en "guardando"
+            _categoryEditUiState.update { it.copy(isSaving = true) }
+
+            try {
+                // 3. Crear la entidad actualizada para enviar al repositorio
+                val updatedCategoryEntity = CategoryEntity(
+                    id = currentState.category.id,
+                    name = currentState.categoryName // Usa el nombre modificado del campo de texto
+                )
+
+                // 4. Llamar a la función del repositorio que nos indicaste
+                categoryRepository.updateCategory(updatedCategoryEntity)
+
+                // 5. Actualizar el estado para indicar éxito
+                _categoryEditUiState.update { it.copy(isSaving = false, saveSuccess = true) }
+
+            } catch (e: Exception) {
+                // 6. En caso de error, actualizar el estado con un mensaje
+                _categoryEditUiState.update {
+                    it.copy(isSaving = false, errorMessage = "Error al guardar los cambios.")
+                }
+            }
+        }
+    }
+
+    //logica para nuevas categorias
+
+    fun onNewCategoryNameChange(newName: String) {
+        _categoryCreateUiState.update {
+            it.copy(
+                categoryName = newName,
+                // Habilita el botón de crear solo si el campo no está vacío.
+                canBeCreated = newName.isNotBlank()
+            )
+        }
+    }
+
+    fun createNewCategory() {
+        viewModelScope.launch {
+            val currentState = _categoryCreateUiState.value
+
+            // Poner el estado en "creando"
+            _categoryCreateUiState.update { it.copy(isCreating = true) }
+
+            try {
+                // Crear la nueva entidad de categoría. El ID se genera automáticamente.
+                val newCategoryEntity = CategoryEntity(name = currentState.categoryName)
+
+                // Llamar a la función del repositorio para insertar.
+                categoryRepository.insertCategory(newCategoryEntity)
+
+                // Actualizar el estado para indicar éxito.
+                _categoryCreateUiState.update { it.copy(isCreating = false, createSuccess = true) }
+
+            } catch (e: Exception) {
+                // En caso de error, actualizar el estado con un mensaje.
+                _categoryCreateUiState.update {
+                    it.copy(isCreating = false, errorMessage = "Error al crear la categoría.")
+                }
+            }
+        }
+    }
+
+    fun clearEditCategoryState() {
+        _categoryEditUiState.value = CategoryEditUiState()
+    }
+
+    fun clearCreateCategoryState() {
+        _categoryCreateUiState.value = CategoryCreateUiState()
+    }
     // --- 6. LÓGICA DEL CARRITO ---
 
     fun addToCart(product: ProductEntity) {

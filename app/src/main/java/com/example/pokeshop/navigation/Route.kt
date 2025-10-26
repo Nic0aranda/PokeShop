@@ -16,4 +16,13 @@ sealed class Route(val path: String) {
     object Cart : Route("cart")
 
     object Checkout : Route("checkout")
+
+    object CategoryManagement : Route("category_management")
+
+    object EditCategory : Route("edit_category/{categoryId}") {
+        fun createRoute(categoryId: Int) = "edit_category/$categoryId"
+    }
+    object CreateCategory : Route("create_category")
+
+    object ProductManagement : Route("product_management")
 }

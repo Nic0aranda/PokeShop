@@ -37,11 +37,10 @@ class PokeShopApplication : Application() {
         // Usamos el scope que creamos en lugar de viewModelScope.
         applicationScope.launch {
             // Inserta Roles si la tabla está vacía.
-            // Usamos .first() para obtener el primer valor (la lista) del Flow
             if (rolRepository.getAllRoles().first().isEmpty()) {
                 val roles = listOf(
-                    RolEntity(name = "Vendedor"), // Asumimos que el id 1 es Vendedor
-                    RolEntity(name = "Cliente")   // Asumimos que el id 2 es Cliente
+                    RolEntity(name = "Vendedor"),
+                    RolEntity(name = "Cliente")
                 )
                 roles.forEach { rolRepository.insertRol(it) }
             }
@@ -49,16 +48,15 @@ class PokeShopApplication : Application() {
             // Inserta Usuarios si la tabla está vacía.
             if (userRepository.getAllUsers().first().isEmpty()) {
                 val users = listOf(
-                    // Contraseña "vendedor123" (hasheada si tuvieras un sistema de hashing)
+                    // usuario vendedor
                     UserEntity(
-                        // CORRECCIÓN: El parámetro se llama 'name' y 'lastName', no 'names' y 'lastNames'
                         names = "Vendedor",
                         lastNames = "Principal",
                         email = "vendedor@pokeshop.com",
                         password = "vendedor123",
                         rolId = 1 // ID del rol Vendedor
                     ),
-                    // Contraseña "cliente123"
+                    // usuario cliente
                     UserEntity(
                         names = "Cliente",
                         lastNames = "Fiel",
