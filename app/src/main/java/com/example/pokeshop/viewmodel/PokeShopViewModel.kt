@@ -116,8 +116,11 @@ data class CategoryCreateUiState(
 
 class PokeShopViewModel(
     private val userRepository: UserRepository,
+    private val rolRepository: RolRepository,
     private val categoryRepository: CategoryRepository,
-    private val productRepository: ProductRepository
+    private val productRepository: ProductRepository,
+    private val saleRepository: SaleRepository,
+    private val saleDetailRepository: SaleDetailRepository
 ) : ViewModel() {
 
     // --- 3. ESTADOS (StateFlows y MutableState) ---
@@ -392,6 +395,32 @@ class PokeShopViewModel(
                     it.copy(isCreating = false, errorMessage = "Error al crear la categoría.")
                 }
             }
+        }
+    }
+
+    //funcion para agregar nuevos productos
+    fun addProduct(
+        name: String,
+        description: String,
+        price: Double,
+        stock: Int,
+        categoryId: Long
+    ) {
+        // Validaciones básicas antes de crear el objeto
+        if (name.isBlank() || description.isBlank() || price <= 0 || stock < 0 || categoryId <= 0) {
+            return
+        }
+
+        viewModelScope.launch {
+            val newProduct = ProductEntity(
+                name = name,
+                description = description,
+                price = price,
+                stock = stock,
+                categoryId = categoryId,
+                status = true // Por defecto, el producto está activo
+            )
+            productRepository.insertProduct(newProduct) // Suponiendo que tienes esta función en el repositorio
         }
     }
 

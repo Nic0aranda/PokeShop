@@ -25,4 +25,10 @@ sealed class Route(val path: String) {
     object CreateCategory : Route("create_category")
 
     object ProductManagement : Route("product_management")
+
+    object CreateProduct : Route("create_product")
+
+    object EditProduct : Route("edit_product/{productId}") {
+        fun createRoute(productId: Int) = "edit_product/$productId"
+    }
 }

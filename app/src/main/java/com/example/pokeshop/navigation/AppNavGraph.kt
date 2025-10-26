@@ -18,10 +18,12 @@ import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
 import androidx.compose.runtime.collectAsState
+import com.example.pokeshop.ui.screen.AddProductScreen
 import com.example.pokeshop.ui.screen.AdminHomeScreen
 import com.example.pokeshop.ui.screen.CategoryEditScreen
 import com.example.pokeshop.ui.screen.CategoryManagementScreenVm
 import com.example.pokeshop.ui.screen.CreateCategoryScreen
+import com.example.pokeshop.ui.screen.ProductManagementScreen
 
 
 @Composable
@@ -133,6 +135,30 @@ fun AppNavGraph(
                 },
                 onGoToCreateCategory = {
                     navController.navigate(Route.CreateCategory.path)
+                }
+            )
+        }
+
+        composable (Route.ProductManagement.path) {
+            ProductManagementScreen(
+                viewModel = viewModel,
+                onBackPress = {
+                    navController.popBackStack()
+                },
+                onAddProduct = {
+                    navController.navigate(Route.CreateProduct.path)
+                },
+                onEditProduct = { productId ->
+                    navController.navigate(Route.EditProduct.createRoute(productId))
+                }
+            )
+        }
+
+        composable(Route.CreateProduct.path) {
+            AddProductScreen(
+                viewModel = viewModel,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
