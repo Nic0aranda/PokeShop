@@ -22,20 +22,24 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+// Clase para representar un elemento del Drawer
 data class DrawerItem(
     val title: String,
     val icon: ImageVector,
     val onClick: () -> Unit
 )
 
+// Composable para el Drawer
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PokeDrawer(
+    // Parámetros para el Drawer
     drawerState: DrawerState,
     scope: CoroutineScope,
     drawerItems: List<DrawerItem>,
     modifier: Modifier = Modifier
 ) {
+    // Contenido del Drawer
     Column(
         modifier = modifier
             .fillMaxHeight()

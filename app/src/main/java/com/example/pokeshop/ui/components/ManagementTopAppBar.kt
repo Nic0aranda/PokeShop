@@ -7,22 +7,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextOverflow
 
-
+// Composable para la barra de navegación superior en la gestión
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManagementTopAppBar(
+    // Parámetros para la barra de navegación superior en la gestión
     title: String,
     onBackPress: () -> Unit,
     onAddPress: () -> Unit
 ) {
+    // Contenido de la barra de navegación superior en la gestión
     TopAppBar(
         title = {
+            // Título de la barra de navegación superior en la gestión
             Text(
                 text = title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         },
+        // Botón para volver atrás
         navigationIcon = {
             IconButton(onClick = onBackPress) {
                 Icon(
@@ -31,6 +35,7 @@ fun ManagementTopAppBar(
                 )
             }
         },
+        // Botón para añadir un nuevo elemento
         actions = {
             IconButton(onClick = onAddPress) {
                 Icon(

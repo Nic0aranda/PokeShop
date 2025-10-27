@@ -7,13 +7,13 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.pokeshop.ui.screen.CartScreen      // Asegúrate de importar esta pantalla
+import com.example.pokeshop.ui.screen.CartScreen
 import com.example.pokeshop.ui.screen.CatalogScreen
 import com.example.pokeshop.ui.screen.CheckoutScreen
 import com.example.pokeshop.ui.screen.HomePS
 import com.example.pokeshop.ui.screen.Inicio
 import com.example.pokeshop.ui.screen.LoginScreenVm
-import com.example.pokeshop.ui.screen.ProductDetailScreen // Asegúrate de importar esta pantalla
+import com.example.pokeshop.ui.screen.ProductDetailScreen
 import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
@@ -35,6 +35,7 @@ fun AppNavGraph(
         navController = navController,
         startDestination = Route.Inicio.path
     ) {
+        //composabl que define a donde llevaran los paths asociados al inicio de la app
         composable(Route.Inicio.path) {
             Inicio(
                 onNavigateToLogin = {
@@ -46,6 +47,7 @@ fun AppNavGraph(
             )
         }
 
+        // composable que define a donde llevaran los paths asociados al login ademas de utilizar funciones para validar si un usuario es admin (vendedor)
         composable(Route.Login.path) {
             LoginScreenVm(
                 viewModel = viewModel,
@@ -69,6 +71,7 @@ fun AppNavGraph(
             )
         }
 
+        // composable que define a donde llevaran los paths asociados al registro
         composable(Route.Register.path) {
             Registro(
                 viewModel = viewModel,
@@ -90,6 +93,7 @@ fun AppNavGraph(
             )
         }
 
+        // composable que define a donde llevaran los paths asociados al home
         composable(Route.Home.path) {
             HomePS(
                 viewModel = viewModel,
@@ -105,6 +109,7 @@ fun AppNavGraph(
             )
         }
 
+        // composable que define a donde llevaran los paths asociados al admin home
         composable(Route.AdminHome.path) {
             AdminHomeScreen(
                 onGoToCategories = {
@@ -124,6 +129,7 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados a la gestion de categorias
         composable (Route.CategoryManagement.path) {
             CategoryManagementScreenVm(
                 viewModel = viewModel,
@@ -131,6 +137,7 @@ fun AppNavGraph(
                     navController.popBackStack()
                 },
                 onGoToEditCategory = { categoryId ->
+                    // Navega a la pantalla de edición pasando el ID de la categoría
                     navController.navigate(Route.EditCategory.createRoute(categoryId))
                 },
                 onGoToCreateCategory = {
@@ -139,6 +146,7 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados a la gestion de productos
         composable (Route.ProductManagement.path) {
             ProductManagementScreen(
                 viewModel = viewModel,
@@ -149,11 +157,13 @@ fun AppNavGraph(
                     navController.navigate(Route.CreateProduct.path)
                 },
                 onEditProduct = { productId ->
+                    // Navega a la pantalla de edición pasando el ID del producto
                     navController.navigate(Route.EditProduct.createRoute(productId))
                 }
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados a la creacion de productos
         composable(Route.CreateProduct.path) {
             AddProductScreen(
                 viewModel = viewModel,
@@ -163,7 +173,9 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados a la edicion de productos
         composable(route = Route.EditCategory.path,
+            // El tipo de argumento debe ser Long para que coincida con la Entidad
             arguments = listOf(navArgument("categoryId") { type = NavType.LongType })
         ) { backStackEntry ->
             // Se obtiene el argumento de la ruta de forma segura.
@@ -179,25 +191,29 @@ fun AppNavGraph(
             CategoryEditScreen(
                 viewModel = viewModel,
                 onNavigateBack = {
+                    // Navega hacia atrás si es necesario.
                     navController.popBackStack()
                 }
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados a la creacion de categorias
         composable(Route.CreateCategory.path) {
             CreateCategoryScreen(
                 viewModel = viewModel,
                 onNavigateBack = {
+                    // Navega hacia atrás si es necesario.
                     navController.popBackStack()
                 }
             )
         }
 
-
+        // composables que definen a donde llevaran los paths asociados al catalogo
         composable(Route.Catalog.path) {
             CatalogScreen(
                 viewModel = viewModel,
                 onProductClick = { productId ->
+                    // Navega a la pantalla de detalle pasando el ID del producto
                     navController.navigate(Route.ProductDetail.createRoute(productId))
                 },
                 onNavigateToHome = {
@@ -212,11 +228,13 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados al perfil
         composable(Route.Profile.path) {
             ProfileScreen(
                 username = viewModel.userState.collectAsState().value.username,
                 email = viewModel.userState.collectAsState().value.email,
                 onLogout = {
+                    // Navega al login y limpia el backstack en caso de logout
                     navController.navigate(Route.Login.path) {
                     }
                 },
@@ -226,6 +244,7 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados al carrito
         composable(Route.Cart.path) {
             CartScreen(
                 viewModel = viewModel,
@@ -238,6 +257,7 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados al checkout
         composable(Route.Checkout.path) {
             CheckoutScreen(
                 onNavigateToHome = {
@@ -246,12 +266,13 @@ fun AppNavGraph(
             )
         }
 
+        // composables que definen a donde llevaran los paths asociados al detalle de productos
         composable(
             route = Route.ProductDetail.path,
             // El tipo de argumento debe ser Long para que coincida con la Entidad
             arguments = listOf(navArgument("productId") { type = NavType.LongType })
         ) { backStackEntry ->
-            // Es más seguro usar getLong y manejar la posible excepción o nulidad.
+            // obtenemos el argumento con un long y lo guardamos en una variable
             val productId = backStackEntry.arguments?.getLong("productId")
 
             // LaunchedEffect asegura que la carga de datos se llama solo una vez

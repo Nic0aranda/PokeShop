@@ -1,5 +1,6 @@
 package com.example.pokeshop.navigation
 
+// Clase para definir las rutas de navegación de la aplicación
 sealed class Route(val path: String) {
     object Inicio : Route("inicio")
     object Login : Route("login")

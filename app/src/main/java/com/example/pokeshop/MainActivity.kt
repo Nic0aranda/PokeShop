@@ -16,6 +16,7 @@ import com.example.pokeshop.ui.theme.PokeShopTheme
 import com.example.pokeshop.viewmodel.PokeShopViewModel
 
 class MainActivity : ComponentActivity() {
+    // metodo llamado cuando la actividad se crea por primera vez
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -24,10 +25,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Obtenemos el contexto de la aplicación
                     val context = LocalContext.current
+                    // Creamos una instancia de PokeShopApplication
                     val app = context.applicationContext as PokeShopApplication
+                    // Creamos el controlador de navegación
                     val navController = rememberNavController()
 
+                    // Creamos una instancia del ViewModel
                     val viewModel = remember {
                         PokeShopViewModel(
                             userRepository = app.userRepository,
@@ -39,6 +44,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // Composición de la pantalla principal
                     AppNavGraph(
                         navController = navController,
                         viewModel = viewModel

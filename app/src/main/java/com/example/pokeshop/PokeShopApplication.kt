@@ -16,10 +16,13 @@ import kotlinx.coroutines.flow.first
 
 class PokeShopApplication : Application() {
 
+    // Creamos un scope para las corrutinas.
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Creamos una instancia de la base de datos.
     val database by lazy { AppDatabase.getInstance(this) }
 
+    // Creamos repositorios para cada entidad.
     val userRepository by lazy { UserRepository(database.userDao()) }
     val rolRepository by lazy { RolRepository(database.rolDao()) }
     val categoryRepository by lazy { CategoryRepository(database.categoryDao()) }
@@ -27,12 +30,14 @@ class PokeShopApplication : Application() {
     val saleRepository by lazy { SaleRepository(database.saleDao()) }
     val saleDetailRepository by lazy { SaleDetailRepository(database.saleDetailDao()) }
 
+    // Al crear la aplicación, inicializamos los datos de prueba.
     override fun onCreate() {
         super.onCreate()
         // Llamamos a la función para inicializar los datos de prueba.
         initializeSampleData()
     }
 
+    // Función para inicializar los datos de prueba.
     private fun initializeSampleData() {
         // Usamos el scope que creamos en lugar de viewModelScope.
         applicationScope.launch {
