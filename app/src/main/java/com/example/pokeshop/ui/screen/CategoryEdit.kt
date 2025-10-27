@@ -52,8 +52,11 @@ fun CategoryEditScreen(
 @Composable
 private fun CategoryEditView(
     uiState: CategoryEditUiState,
+    // Maneja los cambios en el nombre de la categoría.
     onNameChange: (String) -> Unit,
+    // Guarda los cambios en la categoría.
     onSaveChanges: () -> Unit,
+    // Navega hacia atrás.
     onNavigateBack: () -> Unit
 ) {
     Scaffold(

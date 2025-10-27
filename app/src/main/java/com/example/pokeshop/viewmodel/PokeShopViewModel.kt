@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
 import com.example.pokeshop.data.repository.*
+import com.example.pokeshop.domain.validation.Validation
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
@@ -450,5 +451,147 @@ class PokeShopViewModel(
                 _cartUiState.value = CartUiState() // Resetea al estado inicial
             }
         }
+    }
+
+    //Actualiza la cantidad de un producto en el carrito
+    fun increaseCartItemQuantity(productId: Int) {
+        _cartUiState.update { currentState ->
+            val newItems = currentState.items.map { item ->
+                // Actualiza la cantidad del producto actual+1
+                if (item.productId == productId) item.copy(quantity = item.quantity + 1) else item
+            }
+            // Calcula el nuevo total
+            val newTotal = newItems.sumOf { it.price * it.quantity }
+            currentState.copy(items = newItems, total = newTotal)
+        }
+    }
+
+    //Actualiza la cantidad de un producto en el carrito
+    fun decreaseCartItemQuantity(productId: Int) {
+        _cartUiState.update { currentState ->
+            // Busca el producto en el carrito
+            val itemToDecrease = currentState.items.find { it.productId == productId }
+            val newItems = if (itemToDecrease != null && itemToDecrease.quantity > 1) {
+                currentState.items.map { item ->
+                    // Actualiza la cantidad del producto actual-1
+                    if (item.productId == productId) item.copy(quantity = item.quantity - 1) else item
+                }
+            } else {
+                currentState.items.filterNot { it.productId == productId }
+            }
+            // Calcula el nuevo total
+            val newTotal = newItems.sumOf { it.price * it.quantity }
+            currentState.copy(items = newItems, total = newTotal)
+        }
+    }
+
+    //logica de autenticacion de usuarios
+    fun loginUser(onSuccess: (route: String) -> Unit) {
+        viewModelScope.launch {
+            // Actualiza el estado de carga
+            uiStateLogin = uiStateLogin.copy(isSubmitting = true, errorMsg = null)
+            try {
+                // Intenta autenticar al usuario
+                val user = userRepository.getUserByEmail(uiStateLogin.email)
+                if (user != null && user.password == uiStateLogin.pass) {
+                    val isAdmin = user.rolId == 1L // Asumiendo que 1 es rol de Admin creamos esta variable
+                    // Actualiza el estado con la información del usuario
+                    _uiState.update { it.copy(currentUser = user, isAdmin = isAdmin) }
+                    _userState.update { it.copy(username = user.names, email = user.email) }
+                    // Navega a la pantalla correspondiente
+                    val destinationRoute = if (isAdmin) "admin_home" else "catalog"
+                    onSuccess(destinationRoute)
+                } else {
+                    // En caso de error, actualiza el estado
+                    uiStateLogin = uiStateLogin.copy(errorMsg = "Credenciales inválidas", isSubmitting = false)
+                }
+            } catch (e: Exception) {
+                // En caso de error, actualiza el estado
+                uiStateLogin = uiStateLogin.copy(errorMsg = "Error: ${e.message}", isSubmitting = false)
+            }
+        }
+    }
+
+    //Crea un nuevo usuario
+    fun registerUser(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            // Valida los datos del formulario
+            val usernameError = Validation.validateUsername(uiStateRegister.username)
+            val emailError = Validation.validateEmail(uiStateRegister.email)
+            val passError = Validation.validatePassword(uiStateRegister.pass)
+            val confirmPassError = Validation.validateConfirmPassword(uiStateRegister.pass, uiStateRegister.confirmPass)
+
+            // Actualiza el estado
+            uiStateRegister = uiStateRegister.copy(usernameError = usernameError, emailError = emailError, passError = passError, confirmPassError = confirmPassError)
+            if (listOf(usernameError, emailError, passError, confirmPassError).any { it != null }) return@launch // Si hay errores, no continua
+            uiStateRegister = uiStateRegister.copy(isSubmitting = true, errorMsg = null)
+            try {
+                // Verifica si el correo ya está registrado
+                if (userRepository.getUserByEmail(uiStateRegister.email) != null) {
+                    uiStateRegister = uiStateRegister.copy(emailError = "El correo ya está registrado.", isSubmitting = false)
+                    return@launch
+                }
+                // Crea el nuevo usuario
+                val newUser = UserEntity(names = uiStateRegister.username, lastNames = "", email = uiStateRegister.email, password = uiStateRegister.pass, status = true, rolId = 2) // rolId 2 para cliente
+                userRepository.insertUser(newUser)
+                uiStateRegister = uiStateRegister.copy(success = true, isSubmitting = false)
+                onSuccess()
+            } catch (e: Exception) {
+                uiStateRegister = uiStateRegister.copy(errorMsg = "Error en el registro: ${e.message}", isSubmitting = false)
+            }
+        }
+    }
+
+    //Actualiza el estado del formulario de login especificamente el email
+    fun updateLoginEmail(email: String) {
+        uiStateLogin = uiStateLogin.copy(email = email, emailError = Validation.validateEmail(email), canSubmit = validateLoginForm())
+    }
+
+    //Actualiza el estado del formulario de login especificamente la contraseña
+    fun updateLoginPassword(pass: String) {
+        uiStateLogin = uiStateLogin.copy(pass = pass, passError = Validation.validatePassword(pass), canSubmit = validateLoginForm())
+    }
+
+    //Actualiza el estado del formulario de registro especificamente el nombre de usuario
+    fun updateRegisterUsername(username: String) {
+        uiStateRegister = uiStateRegister.copy(username = username, usernameError = Validation.validateUsername(username), canSubmit = validateRegisterForm())
+    }
+
+    //Actualiza el estado del formulario de registro especificamente el email
+    fun updateRegisterEmail(email: String) {
+        uiStateRegister = uiStateRegister.copy(email = email, emailError = Validation.validateEmail(email), canSubmit = validateRegisterForm())
+    }
+
+    //Actualiza el estado del formulario de registro especificamente la contraseña
+    fun updateRegisterPassword(pass: String) {
+        uiStateRegister = uiStateRegister.copy(pass = pass, passError = Validation.validatePassword(pass), canSubmit = validateRegisterForm())
+    }
+
+    //Actualiza el estado del formulario de registro especificamente la confirmacion de la contraseña
+    fun updateRegisterConfirmPassword(confirmPass: String) {
+        uiStateRegister = uiStateRegister.copy(confirmPass = confirmPass, confirmPassError = Validation.validateConfirmPassword(uiStateRegister.pass, confirmPass), canSubmit = validateRegisterForm())
+    }
+
+    //Limpia el estado del formulario de login
+    fun clearLoginState() {
+        uiStateLogin = LoginUiState()
+    }
+
+    //Limpia el estado del formulario de registro
+    fun clearRegisterState() {
+        uiStateRegister = RegisterUiState()
+    }
+
+    //Valida el formulario de login
+    private fun validateLoginForm(): Boolean {
+        val state = uiStateLogin
+        return state.emailError == null && state.passError == null && state.email.isNotBlank() && state.pass.isNotBlank()
+    }
+
+    //Valida el formulario de registro
+    private fun validateRegisterForm(): Boolean {
+        val state = uiStateRegister
+        return state.usernameError == null && state.emailError == null && state.passError == null && state.confirmPassError == null &&
+                state.username.isNotBlank() && state.email.isNotBlank() && state.pass.isNotBlank() && state.confirmPass.isNotBlank()
     }
 }

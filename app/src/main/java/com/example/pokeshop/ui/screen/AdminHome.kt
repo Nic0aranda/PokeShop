@@ -11,21 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.pokeshop.ui.theme.PokeShopTheme
 
-/**
- * Pantalla principal para el administrador.
- * Ofrece acceso a la gestión de productos, categorías y la opción de cerrar sesión.
- *
- * @param onGoToCategories Callback para navegar a la pantalla de gestión de categorías.
- * @param onGoToProducts Callback para navegar a la pantalla de gestión de productos.
- * @param onLogout Callback para ejecutar la lógica de cierre de sesión y navegar al login.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminHomeScreen(
+    // Navegación
     onGoToCategories: () -> Unit,
     onGoToProducts: () -> Unit,
     onLogout: () -> Unit
@@ -50,12 +41,14 @@ fun AdminHomeScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
+                // Texto centrado en la pantalla
                 text = "Bienvenido, Administrador",
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
+                // Texto centrado en la pantalla
                 text = "Selecciona una opción para comenzar a gestionar la tienda.",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
@@ -100,6 +93,7 @@ fun AdminHomeScreen(
     }
 }
 
+// Botón personalizado para el menú de administración
 @Composable
 private fun AdminMenuButton(
     text: String,
@@ -120,19 +114,5 @@ private fun AdminMenuButton(
         )
         Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
         Text(text, style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-// --- PREVIEW ---
-// Permite visualizar el diseño de la pantalla en Android Studio sin ejecutar la app.
-@Preview(showBackground = true)
-@Composable
-fun AdminHomeScreenPreview() {
-    PokeShopTheme {
-        AdminHomeScreen(
-            onGoToCategories = { /* No hace nada en la preview */ },
-            onGoToProducts = { /* No hace nada en la preview */ },
-            onLogout = { /* No hace nada en la preview */ }
-        )
     }
 }

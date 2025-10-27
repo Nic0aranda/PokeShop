@@ -25,11 +25,10 @@ import com.example.pokeshop.viewmodel.ProductDetailUiState
 @Composable
 fun ProductDetailScreen(
     viewModel: PokeShopViewModel,
-    productId: Int,
+    productId: Int, // Id del producto a mostrar
     onNavigateBack: () -> Unit
 ) {
     // Usamos `LaunchedEffect` para indicar al ViewModel qué producto cargar.
-    // Se ejecutará solo una vez cuando el Composable entre en la composición.
     LaunchedEffect(key1 = productId) {
         viewModel.getProductById(productId.toLong())
     }
@@ -37,6 +36,7 @@ fun ProductDetailScreen(
     // Observamos el estado de la UI de los detalles del producto desde el ViewModel
     val productState by viewModel.productDetailUiState.collectAsStateWithLifecycle()
 
+    // Composición de la pantalla de detalles del producto
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,11 +65,12 @@ fun ProductDetailScreen(
     }
 }
 
+// Contenido de la pantalla de detalles del producto
 @Composable
 fun ProductDetailContent(
     modifier: Modifier = Modifier,
-    productState: ProductDetailUiState,
-    onAddToCart: (ProductEntity) -> Unit
+    productState: ProductDetailUiState, // Estado del producto
+    onAddToCart: (ProductEntity) -> Unit // Callback para añadir al carrito
 ) {
     // Manejo de los estados de carga, error y éxito
     when {
@@ -104,11 +105,9 @@ fun ProductDetailContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // --- Imagen del Producto ---
-                // Reemplaza con tu lógica para cargar imágenes (ej: Coil)
+                //imagen del producto
                 Image(
-                    // Usa un placeholder mientras cargas la imagen real
-                    painter = painterResource(id = R.drawable.ic_launcher_background), // CAMBIAR ESTO
+                    painter = painterResource(id = R.drawable.ic_launcher_background), //imagen provisional hasta implementacion futura
                     contentDescription = "Imagen de ${product.name}",
                     modifier = Modifier
                         .fillMaxWidth(0.8f)
@@ -116,7 +115,7 @@ fun ProductDetailContent(
                     contentScale = ContentScale.Crop
                 )
 
-                // --- Nombre del Producto ---
+                // nombre del producto
                 Text(
                     text = product.name,
                     style = MaterialTheme.typography.headlineMedium,
@@ -124,14 +123,14 @@ fun ProductDetailContent(
                     textAlign = TextAlign.Center
                 )
 
-                // --- Precio del Producto ---
+                //precio
                 Text(
                     text = "$${product.price}",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                // --- Descripción del Producto ---
+                //descripcion
                 Text(
                     text = product.description,
                     style = MaterialTheme.typography.bodyLarge,
@@ -140,7 +139,7 @@ fun ProductDetailContent(
 
                 Spacer(modifier = Modifier.weight(1f)) // Empuja el botón hacia abajo
 
-                // --- Botón de Añadir al Carrito ---
+                //boton para añadir al carrito
                 Button(
                     onClick = { onAddToCart(product) },
                     modifier = Modifier.fillMaxWidth()

@@ -19,6 +19,7 @@ import com.example.pokeshop.viewmodel.PokeShopViewModel
 @Composable
 fun Registro(
     viewModel: PokeShopViewModel,
+    // Navegación
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
@@ -155,7 +156,7 @@ fun Registro(
 
         // Botón de Registro
         Button(
-            onClick = { viewModel.registerUser() },
+            onClick = { viewModel.registerUser(onRegisterSuccess) },
             enabled = uiState.canSubmit && !uiState.isSubmitting, // Habilitado si se puede enviar y no está cargando
             modifier = Modifier.fillMaxWidth()
         ) {

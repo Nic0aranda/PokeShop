@@ -35,18 +35,22 @@ fun formatToCLP(amount: Double): String {
     return format.format(amount)
 }
 
+// Pantalla de carrito
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     viewModel: PokeShopViewModel,
+    // Navegación
     onNavigateBack: () -> Unit,
     onNavigateToCheckout: () -> Unit
 ) {
+    // Estado del carrito
     val cartUiState by viewModel.cartUiState.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
+                // Configuración del TopAppBar
                 title = { Text("Mi Carrito") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -57,6 +61,7 @@ fun CartScreen(
                     }
                 },
                 actions = {
+                    // Botón para vaciar el carrito
                     if (cartUiState.items.isNotEmpty()) {
                         IconButton(onClick = { viewModel.clearCart() }) {
                             Icon(
@@ -70,6 +75,7 @@ fun CartScreen(
         },
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         bottomBar = {
+            // Botón de compra si hay elementos en el carrito
             if (cartUiState.items.isNotEmpty()) {
                 CartBottomBar(
                     total = cartUiState.total,
@@ -78,6 +84,7 @@ fun CartScreen(
             }
         }
     ) { innerPadding ->
+        // Contenido de la pantalla si es que el carro esta vacio
         if (cartUiState.items.isEmpty()) {
             EmptyCartMessage(modifier = Modifier.padding(innerPadding))
         } else {
@@ -88,6 +95,7 @@ fun CartScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Lista de elementos en el carrito
                 items(cartUiState.items, key = { it.productId }) { cartItem ->
                     CartItemRow(
                         cartItem = cartItem,
@@ -102,9 +110,11 @@ fun CartScreen(
     }
 }
 
+// Fila de elemento en el carrito
 @Composable
 fun CartItemRow(
     cartItem: CartItem,
+    //funciones de aumentar y disminuir cantidad ademas de eliminar del carrito
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     onRemove: () -> Unit
@@ -113,6 +123,7 @@ fun CartItemRow(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
+        // Contenido de la fila
         Row(
             modifier = Modifier
                 .padding(12.dp)
@@ -158,11 +169,13 @@ fun CartItemRow(
     }
 }
 
+// Barra inferior para el carrito
 @Composable
 fun CartBottomBar(total: Double, onCheckoutClick: () -> Unit) {
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) {
+        // Total y botón de compra
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -182,6 +195,7 @@ fun CartBottomBar(total: Double, onCheckoutClick: () -> Unit) {
     }
 }
 
+// Mensaje de carrito vacío
 @Composable
 fun EmptyCartMessage(modifier: Modifier = Modifier) {
     Box(

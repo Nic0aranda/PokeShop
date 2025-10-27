@@ -43,22 +43,23 @@ fun AddProductScreen(
     viewModel: PokeShopViewModel,
     onNavigateBack: () -> Unit
 ) {
-    // 1. Recoger las categorías desde el ViewModel
+    // Recoger las categorías
     val catalogState by viewModel.catalogUiState.collectAsStateWithLifecycle()
     val categories = catalogState.categories
 
-    // 2. Estados para cada campo del formulario
+    //Estados para cada campo del formulario
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
 
-    // 3. Estados para el menú desplegable de categorías
+    //Estados para el menú desplegable de categorías
     var isCategoryExpanded by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
 
     val context = LocalContext.current
 
+    //composicion del navbar
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,7 +83,7 @@ fun AddProductScreen(
                 .verticalScroll(rememberScrollState()), // Para que sea scrollable en pantallas pequeñas
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- CAMPOS DE TEXTO ---
+            //nombre
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -91,6 +92,7 @@ fun AddProductScreen(
                 singleLine = true
             )
 
+            //descripcion
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -98,6 +100,7 @@ fun AddProductScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            //precio
             OutlinedTextField(
                 value = price,
                 onValueChange = { price = it },
@@ -106,6 +109,7 @@ fun AddProductScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
 
+            //stock
             OutlinedTextField(
                 value = stock,
                 onValueChange = { stock = it },
@@ -114,7 +118,7 @@ fun AddProductScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
-            // --- MENÚ DESPLEGABLE DE CATEGORÍAS ---
+            //menu desplegable de categorias
             ExposedDropdownMenuBox(
                 expanded = isCategoryExpanded,
                 onExpandedChange = { isCategoryExpanded = it }
@@ -133,6 +137,7 @@ fun AddProductScreen(
                     expanded = isCategoryExpanded,
                     onDismissRequest = { isCategoryExpanded = false }
                 ) {
+                    // Muestra las categorías en el menú desplegable
                     categories.forEach { category ->
                         DropdownMenuItem(
                             text = { Text(category.name) },
@@ -147,13 +152,15 @@ fun AddProductScreen(
 
             Spacer(modifier = Modifier.weight(1f)) // Empuja el botón hacia abajo
 
-            // --- BOTÓN DE GUARDAR ---
+            //boton de guardar
             Button(
+                // Llama a la función para guardar el producto
                 onClick = {
                     val priceDouble = price.toDoubleOrNull()
                     val stockInt = stock.toIntOrNull()
                     val categoryId = selectedCategory?.id
 
+                    // Valida que los campos no estén vacíos
                     if (name.isNotBlank() && priceDouble != null && stockInt != null && categoryId != null) {
                         viewModel.addProduct(
                             name = name,

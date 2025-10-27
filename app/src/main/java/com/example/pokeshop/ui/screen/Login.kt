@@ -16,9 +16,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pokeshop.viewmodel.PokeShopViewModel
 
+//logica de login
 @Composable
 fun LoginScreenVm(
     viewModel: PokeShopViewModel,
+    // Navegación
     onLoginSuccess: (isAdmin: Boolean) -> Unit,
     onGoRegister: () -> Unit
 ) {
@@ -28,7 +30,7 @@ fun LoginScreenVm(
     // Navega y luego limpia el estado.
     LaunchedEffect(state.success) {
         if (state.success) {
-            // El `loginUser` en el ViewModel verifica si el usuario es un admin.
+            //La funcion loginUser verifica si el usuario es un vendedor
             // La información de si es admin o no, se guarda en `errorMsg` temporalmente.
             onLoginSuccess(state.errorMsg == "vendedor")
         }
@@ -57,8 +59,10 @@ fun LoginScreenVm(
     )
 }
 
+// Composición de la pantalla de login.
 @Composable
 private fun LoginScreen(
+    // Datos del formulario.
     email: String,
     pass: String,
     emailError: String?,
@@ -72,8 +76,10 @@ private fun LoginScreen(
     onGoRegister: () -> Unit
 ) {
     val bg = MaterialTheme.colorScheme.secondaryContainer
+    // Estado para controlar la visibilidad de la contraseña.
     var showPass by remember { mutableStateOf(false) }
 
+    //Contenido
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -85,7 +91,7 @@ private fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
+            Text( // Titulo
                 text = "PokeShop Login",
                 style = MaterialTheme.typography.headlineSmall
             )

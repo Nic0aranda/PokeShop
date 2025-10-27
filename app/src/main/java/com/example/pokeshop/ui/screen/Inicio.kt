@@ -10,13 +10,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+//Pantalla de inicio
 @Composable
 fun Inicio(
+    // Navegación
     onNavigateToLogin: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
+    // Colores
     val bg = MaterialTheme.colorScheme.secondaryContainer
 
+    // Contenido
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -25,13 +29,14 @@ fun Inicio(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-
+        //boton de navegacion al login
         Button(onClick = onNavigateToLogin) {
             Text("Iniciar Sesión")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        //boton de navegacion al registro
         Button(onClick = onNavigateToRegister) {
             Text("Crear Cuenta")
         }

@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -39,10 +40,10 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    // 1. Estado para almacenar la URI de la imagen seleccionada
+    //Estado para almacenar la URI de la imagen seleccionada
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // 2. API nativa para seleccionar contenido (la galería de imágenes)
+    //API nativa para seleccionar contenido desde la galeria
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? ->
@@ -54,7 +55,7 @@ fun ProfileScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Perfil") },
-                // --- 2. AÑADE EL BOTÓN DE NAVEGACIÓN ---
+                // Navegación hacia atrás
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) { // Llama a la nueva función
                         Icon(
@@ -81,7 +82,7 @@ fun ProfileScreen(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // 3. Contenedor de la imagen de perfil
+        //contenedor de imagen de perfil
         Box(
             modifier = Modifier
                 .size(150.dp)
@@ -116,7 +117,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 4. Información del usuario (Nombre y Correo)
+        //Información del usuario
         ProfileInfoItem(
             icon = Icons.Default.Person,
             label = "Nombre de Usuario",
@@ -143,8 +144,9 @@ fun ProfileScreen(
     }
 }
 
+// Item de información personal
 @Composable
-fun ProfileInfoItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+fun ProfileInfoItem(icon: ImageVector, label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

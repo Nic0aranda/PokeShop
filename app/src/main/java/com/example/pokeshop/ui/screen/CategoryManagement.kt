@@ -25,11 +25,13 @@ import com.example.pokeshop.viewmodel.PokeShopViewModel
 @Composable
 fun CategoryManagementScreenVm(
     viewModel: PokeShopViewModel,
+    // Navegación
     onBackPress: () -> Unit,
-    onGoToEditCategory: (categoryId: Int) -> Unit,
+    onGoToEditCategory: (categoryId: Int) -> Unit, // Pasar el ID de la categoría
     onGoToCreateCategory: () -> Unit
 ) {
 
+    // Cargamos las categorías del ViewModel cuando se crea la pantalla
     LaunchedEffect(Unit) {
         viewModel.loadManagedCategories()
     }
@@ -45,11 +47,12 @@ fun CategoryManagementScreenVm(
     )
 }
 
+// Esta es la pantalla de gestión de categorías
 @Composable
 private fun CategoryManagementScreen(
-    categories: List<Category>,
+    categories: List<Category>, // Lista de categorías
     onBackPress: () -> Unit,
-    onGoToEditCategory: (categoryId: Int) -> Unit,
+    onGoToEditCategory: (categoryId: Int) -> Unit, // Pasar el ID de la categoría
     onGoToCreateCategory: () -> Unit
 ) {
     Scaffold(
@@ -61,8 +64,6 @@ private fun CategoryManagementScreen(
             )
         }
     ) { paddingValues ->
-        // Usamos LazyVerticalGrid para mostrar las categorías en una cuadrícula.
-        // `GridCells.Fixed(2)` crea 2 columnas.
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.padding(paddingValues),
@@ -80,10 +81,7 @@ private fun CategoryManagementScreen(
     }
 }
 
-/**
- * Representa un botón grande en la cuadrícula para una categoría específica.
- * Es un Card con elevación que lo hace parecer un botón grande y clickeable.
- */
+//Card de cada producto que son clickeables
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryGridItem(

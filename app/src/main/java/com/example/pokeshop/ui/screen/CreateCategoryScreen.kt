@@ -12,17 +12,13 @@ import androidx.compose.ui.unit.dp
 import com.example.pokeshop.viewmodel.CategoryCreateUiState
 import com.example.pokeshop.viewmodel.PokeShopViewModel
 
-/**
- * Pantalla para crear una nueva categoría.
- *
- * @param viewModel El ViewModel que contiene la lógica y el estado.
- * @param onNavigateBack Callback para navegar a la pantalla anterior.
- */
+// Pantalla para crear una nueva categoría
 @Composable
 fun CreateCategoryScreen(
     viewModel: PokeShopViewModel,
     onNavigateBack: () -> Unit
 ) {
+    // Estado del ViewModel.
     val uiState by viewModel.categoryCreateUiState.collectAsState()
 
     // Efecto que navega hacia atrás cuando la creación es exitosa.
@@ -48,18 +44,19 @@ fun CreateCategoryScreen(
     )
 }
 
+// Composable que renderiza la vista de creación de categoría.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateCategoryView(
-    uiState: CategoryCreateUiState,
-    onNameChange: (String) -> Unit,
-    onCreateCategory: () -> Unit,
+    uiState: CategoryCreateUiState, // Estado del ViewModel.
+    onNameChange: (String) -> Unit, // Maneja cambios en el nombre.
+    onCreateCategory: () -> Unit, // Crea la categoría.
     onNavigateBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nueva Categoría") },
+                title = { Text("Nueva Categoría") }, // Título de la pantalla.
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -76,6 +73,7 @@ private fun CreateCategoryView(
             )
         }
     ) { paddingValues ->
+        //Formulario de creación de categoría.
         Column(
             modifier = Modifier
                 .fillMaxSize()

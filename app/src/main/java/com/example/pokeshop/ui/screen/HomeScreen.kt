@@ -35,10 +35,12 @@ fun HomePS(
     //sirve para navegar a la pagina de cada producto segun su id
     onNavigateToProductDetail: (Int) -> Unit
 ) {
+    // Estado del catálogo
     val catalogState by viewModel.catalogUiState.collectAsState()
     val products = catalogState.products
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed) // Estado del menú lateral
+    val scope = rememberCoroutineScope() // Alcance para el menú lateral
+
 
     // Items del menú lateral
     val drawerItems = listOf(
@@ -90,13 +92,15 @@ fun HomePS(
     }
 }
 
+// Contenido de la pantalla
 @Composable
 fun HomeContent(
-    products: List<com.example.pokeshop.data.entities.ProductEntity>,
+    products: List<com.example.pokeshop.data.entities.ProductEntity>, // Lista de productos
     modifier: Modifier = Modifier,
-    onProductClick: (Int) -> Unit
+    onProductClick: (Int) -> Unit // Acción al hacer clic en un producto
 ) {
 
+    // Filtra los productos por categoría
     fun getProductsByCategory(categoryId: Long): List<com.example.pokeshop.data.entities.ProductEntity> {
         return products.filter { it.categoryId == categoryId }
     }
@@ -140,12 +144,14 @@ fun HomeContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class) // Recomendado para el Card clickeable
+// Elemento de producto en la lista
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductItem(
     product: com.example.pokeshop.data.entities.ProductEntity,
-    onProductClick: () -> Unit
+    onProductClick: () -> Unit // Acción al hacer clic en el producto
 ) {
+    // Elemento de producto
     Card(
         onClick = onProductClick,
         modifier = Modifier

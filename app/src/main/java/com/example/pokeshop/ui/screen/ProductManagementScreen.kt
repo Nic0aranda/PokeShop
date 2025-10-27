@@ -26,16 +26,16 @@ import com.example.pokeshop.viewmodel.PokeShopViewModel
 @Composable
 fun ProductManagementScreen(
     viewModel: PokeShopViewModel,
+    //navegacion
     onBackPress: () -> Unit,
     onAddProduct: () -> Unit,
     onEditProduct: (Int) -> Unit
 ) {
-    // 1. Observa el mismo estado que el catálogo para obtener la lista de productos.
+    //Observa el mismo estado que el catálogo para obtener la lista de productos.
     val catalogState by viewModel.catalogUiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            // 2. Utiliza ManagementTopAppBar como solicitaste.
             ManagementTopAppBar(
                 title = "Gestión de Productos",
                 onBackPress = onBackPress,
@@ -43,8 +43,9 @@ fun ProductManagementScreen(
             )
         }
     ) { innerPadding ->
-        // Indicadores de carga y de estado vacío, igual que en CatalogScreen
+        //Comprueba el estado
         when {
+            //Si esta cargando, muestra un indicador
             catalogState.isLoading -> {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -53,6 +54,7 @@ fun ProductManagementScreen(
                     CircularProgressIndicator()
                 }
             }
+            //Si hay un error, muestra un mensaje o si esta vacia la lista
             catalogState.products.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -62,7 +64,7 @@ fun ProductManagementScreen(
                 }
             }
             else -> {
-                // 3. Muestra la cuadrícula de productos.
+                //Muestra los productos
                 ProductManagementGrid(
                     modifier = Modifier.padding(innerPadding),
                     products = catalogState.products,
@@ -74,15 +76,16 @@ fun ProductManagementScreen(
     }
 }
 
+//Card de producto
 @Composable
 fun ProductManagementGrid(
     modifier: Modifier = Modifier,
-    products: List<ProductEntity>,
-    onProductClick: (Int) -> Unit
+    products: List<ProductEntity>, // Lista de productos
+    onProductClick: (Int) -> Unit // Acción de clic en un producto
 ) {
-    // Reutiliza la misma estructura de cuadrícula que CatalogScreen.
+    // Reutiliza la misma estructura de card que el catalogo.
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2), // O GridCells.Adaptive para más flexibilidad
+        columns = GridCells.Fixed(2),
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),

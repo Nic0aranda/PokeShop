@@ -36,11 +36,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun CatalogScreen(
     viewModel: PokeShopViewModel,
+    // Navegación
     onProductClick: (Int) -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToCart: () -> Unit
 ) {
+    // Estado del menú lateral
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -88,11 +90,13 @@ fun CatalogScreen(
                         val cartState by viewModel.cartUiState.collectAsStateWithLifecycle()
                         BadgedBox(
                             badge = {
+                                // Solo mostramos el badge si hay al menos un elemento en el carrito
                                 if (cartState.items.isNotEmpty()) {
                                     Badge { Text("${cartState.items.sumOf { it.quantity }}") }
                                 }
                             }
                         ) {
+                            // Icono del carrito
                             IconButton(onClick = onNavigateToCart) {
                                 Icon(
                                     imageVector = Icons.Default.ShoppingCart,
@@ -114,17 +118,17 @@ fun CatalogScreen(
     }
 }
 
-/**
- * Composable que contiene solo la UI del catálogo (búsqueda, filtros, productos).
- * Es el equivalente a tu 'HomeContent'.
- */
+// Contenido del Catálogo
 @Composable
 fun CatalogContent(
     modifier: Modifier = Modifier,
     viewModel: PokeShopViewModel,
+    // Navegación
     onProductClick: (Int) -> Unit
 ) {
+    // Estado del catálogo
     val catalogState by viewModel.catalogUiState.collectAsStateWithLifecycle()
+    // Scroll para el contenido
     val scrollState = rememberScrollState()
 
     Column(
@@ -177,7 +181,7 @@ fun CatalogContent(
     }
 }
 
-// --- Los Composables más pequeños (SearchBar, CategoryFilters, etc.) se mantienen igual ---
+//Los Componentes más pequeños que se usan en el Catálogo
 
 @Composable
 fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
@@ -221,6 +225,7 @@ fun CategoryFilters(
 
 @Composable
 fun ProductGrid(
+    // Lista de productos
     products: List<ProductEntity>,
     onProductClick: (Int) -> Unit
 ) {
@@ -236,6 +241,7 @@ fun ProductGrid(
     }
 }
 
+// Elemento de producto en la lista
 @Composable
 fun ProductCard(product: ProductEntity, onProductClick: (Int) -> Unit) {
     Card(
