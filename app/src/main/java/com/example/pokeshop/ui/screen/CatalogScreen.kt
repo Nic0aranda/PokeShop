@@ -1,14 +1,13 @@
 package com.example.pokeshop.ui.screen
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState // Para los filtros horizontales
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -18,12 +17,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.pokeshop.R
 import com.example.pokeshop.data.entities.CategoryEntity
 import com.example.pokeshop.data.entities.ProductEntity
 import com.example.pokeshop.ui.components.DrawerItem
@@ -36,79 +40,47 @@ import kotlinx.coroutines.launch
 @Composable
 fun CatalogScreen(
     viewModel: PokeShopViewModel,
-    // Navegación
     onProductClick: (Int) -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToCart: () -> Unit
 ) {
-    // Estado del menú lateral
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Items del menú lateral (similar a Home, pero "Catálogo" es el activo)
     val drawerItems = listOf(
-        DrawerItem(
-            title = "Inicio",
-            icon = Icons.Default.Home,
-            onClick = onNavigateToHome
-        ),
-        DrawerItem(
-            title = "Catálogo",
-            icon = Icons.Default.ShoppingCart,
-            onClick = { /* Ya estamos en catálogo */ }
-        ),
-        DrawerItem(
-            title = "Perfil",
-            icon = Icons.Default.Person,
-            onClick = onNavigateToProfile
-        )
+        DrawerItem("Inicio", Icons.Default.Home, onNavigateToHome),
+        DrawerItem("Catálogo", Icons.Default.ShoppingCart) { scope.launch { drawerState.close() } },
+        DrawerItem("Perfil", Icons.Default.Person, onNavigateToProfile)
     )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        drawerContent = {
-            PokeDrawer(
-                drawerState = drawerState,
-                scope = scope,
-                drawerItems = drawerItems
-            )
-        }
+        drawerContent = { PokeDrawer(drawerState, scope, drawerItems) }
     ) {
         Scaffold(
             topBar = {
-                // Usamos tu TopBar reutilizable
                 PokeTopBar(
                     title = "Catálogo",
-                    onMenuClick = {
-                        scope.launch {
-                            drawerState.open()
-                        }
-                    },
-                    // Añadimos el icono del carrito a la TopBar
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    // --- BOTÓN DEL CARRITO ---
                     actions = {
                         val cartState by viewModel.cartUiState.collectAsStateWithLifecycle()
-                        BadgedBox(
-                            badge = {
-                                // Solo mostramos el badge si hay al menos un elemento en el carrito
-                                if (cartState.items.isNotEmpty()) {
-                                    Badge { Text("${cartState.items.sumOf { it.quantity }}") }
+                        IconButton(onClick = onNavigateToCart) {
+                            BadgedBox(
+                                badge = {
+                                    if (cartState.items.isNotEmpty()) {
+                                        Badge { Text("${cartState.items.sumOf { it.quantity }}") }
+                                    }
                                 }
-                            }
-                        ) {
-                            // Icono del carrito
-                            IconButton(onClick = onNavigateToCart) {
-                                Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
-                                    contentDescription = "Carrito de compras"
-                                )
+                            ) {
+                                Icon(Icons.Default.ShoppingCart, "Carrito")
                             }
                         }
                     }
                 )
             }
         ) { innerPadding ->
-            // El contenido específico del catálogo
             CatalogContent(
                 modifier = Modifier.padding(innerPadding),
                 viewModel = viewModel,
@@ -118,70 +90,62 @@ fun CatalogScreen(
     }
 }
 
-// Contenido del Catálogo
 @Composable
 fun CatalogContent(
     modifier: Modifier = Modifier,
     viewModel: PokeShopViewModel,
-    // Navegación
     onProductClick: (Int) -> Unit
 ) {
-    // Estado del catálogo
     val catalogState by viewModel.catalogUiState.collectAsStateWithLifecycle()
-    // Scroll para el contenido
-    val scrollState = rememberScrollState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
+    // Usamos LazyVerticalGrid como contenedor PRINCIPAL para evitar scroll anidado
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 16.dp) // Padding final
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        // Barra de Búsqueda
-        SearchBar(
-            query = catalogState.searchQuery,
-            onQueryChange = viewModel::onSearchQueryChanged
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        // --- HEADER (Buscador y Filtros) ---
+        // Usamos span = { GridItemSpan(2) } para que ocupen todo el ancho
+        item(span = { GridItemSpan(2) }) {
+            Column {
+                Spacer(modifier = Modifier.height(16.dp))
+                SearchBar(
+                    query = catalogState.searchQuery,
+                    onQueryChange = viewModel::onSearchQueryChanged
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                CategoryFilters(
+                    categories = catalogState.categories,
+                    selectedCategoryId = catalogState.selectedCategoryId,
+                    onCategorySelected = viewModel::onCategorySelected
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
 
-        // Filtros por Categoría
-        CategoryFilters(
-            categories = catalogState.categories,
-            selectedCategoryId = catalogState.selectedCategoryId,
-            onCategorySelected = viewModel::onCategorySelected
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Lista de Productos
+        // --- ESTADOS DE CARGA / VACÍO ---
         if (catalogState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+            item(span = { GridItemSpan(2) }) {
+                Box(modifier = Modifier.height(200.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         } else if (catalogState.products.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No se encontraron productos.", style = MaterialTheme.typography.bodyLarge)
+            item(span = { GridItemSpan(2) }) {
+                Box(modifier = Modifier.height(200.dp), contentAlignment = Alignment.Center) {
+                    Text("No se encontraron productos.", style = MaterialTheme.typography.bodyLarge)
+                }
             }
         } else {
-            ProductGrid(
-                products = catalogState.products,
-                onProductClick = onProductClick
-            )
+            // --- LISTA DE PRODUCTOS ---
+            items(catalogState.products, key = { it.id }) { product ->
+                ProductCard(product = product, onProductClick = onProductClick)
+            }
         }
     }
 }
-
-//Los Componentes más pequeños que se usan en el Catálogo
 
 @Composable
 fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
@@ -189,9 +153,10 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text("Buscar por nombre...") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
-        singleLine = true
+        label = { Text("Buscar carta o sobre...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        singleLine = true,
+        shape = MaterialTheme.shapes.medium
     )
 }
 
@@ -224,57 +189,50 @@ fun CategoryFilters(
 }
 
 @Composable
-fun ProductGrid(
-    // Lista de productos
-    products: List<ProductEntity>,
-    onProductClick: (Int) -> Unit
-) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.height(1200.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(products, key = { it.id }) { product ->
-            ProductCard(product = product, onProductClick = onProductClick)
-        }
-    }
-}
-
-// Elemento de producto en la lista
-@Composable
 fun ProductCard(product: ProductEntity, onProductClick: (Int) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onProductClick(product.id.toInt()) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Image(
-                painter = painterResource(id = androidx.core.R.drawable.ic_call_answer),
-                contentDescription = "Imagen de ${product.name}",
+            // Imagen con Coil
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data("https://placeholder.com/pokecard.png") // URL real futura
+                    .crossfade(true)
+                    .build(),
+                placeholder = painterResource(R.drawable.ic_launcher_background),
+                error = painterResource(R.drawable.ic_launcher_background),
+                contentDescription = product.name,
                 modifier = Modifier
-                    .size(80.dp)
-                    .padding(end = 16.dp),
-                contentScale = ContentScale.Crop
+                    .size(100.dp) // Un poco más grande para el catálogo
+                    .padding(bottom = 8.dp),
+                contentScale = ContentScale.Fit,
+                alignment = Alignment.Center
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = product.name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                maxLines = 2
+                maxLines = 2,
+                minLines = 2 // Para alinear las tarjetas
             )
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = "$${product.price}",
+                text = "$${product.price} USD",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
             )
         }
     }

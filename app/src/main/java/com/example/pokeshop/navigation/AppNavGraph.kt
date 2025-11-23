@@ -23,6 +23,7 @@ import com.example.pokeshop.ui.screen.AdminHomeScreen
 import com.example.pokeshop.ui.screen.CategoryEditScreen
 import com.example.pokeshop.ui.screen.CategoryManagementScreenVm
 import com.example.pokeshop.ui.screen.CreateCategoryScreen
+import com.example.pokeshop.ui.screen.OrderSuccessScreen
 import com.example.pokeshop.ui.screen.ProductManagementScreen
 
 
@@ -105,6 +106,9 @@ fun AppNavGraph(
                 },
                 onNavigateToProductDetail = { productId ->
                     navController.navigate(Route.ProductDetail.createRoute(productId))
+                },
+                onNavigateToCart = {
+                    navController.navigate(Route.Cart.path)
                 }
             )
         }
@@ -231,8 +235,6 @@ fun AppNavGraph(
         // composables que definen a donde llevaran los paths asociados al perfil
         composable(Route.Profile.path) {
             ProfileScreen(
-                username = viewModel.userState.collectAsState().value.username,
-                email = viewModel.userState.collectAsState().value.email,
                 onLogout = {
                     // Navega al login y limpia el backstack en caso de logout
                     navController.navigate(Route.Login.path) {
@@ -240,7 +242,8 @@ fun AppNavGraph(
                 },
                 onNavigateBack = {
                 navController.popBackStack()
-            }
+                },
+                viewModel = viewModel
             )
         }
 
@@ -258,10 +261,25 @@ fun AppNavGraph(
         }
 
         // composables que definen a donde llevaran los paths asociados al checkout
-        composable(Route.Checkout.path) {
+        composable("checkout") {
             CheckoutScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToSuccess = {
+                    // Al tener éxito, borramos el historial de navegación para que no pueda volver atrás al carrito lleno
+                    navController.navigate("order_success") {
+                        popUpTo("home") { inclusive = false } // Volver hasta Home limpiando pila
+                    }
+                }
+            )
+        }
+
+        composable("order_success") {
+            OrderSuccessScreen(
                 onNavigateToHome = {
-                    navController.navigate(Route.Home.path)
+                    navController.navigate("home") {
+                        popUpTo(0) // Limpia TODO y vuelve al inicio limpio
+                    }
                 }
             )
         }

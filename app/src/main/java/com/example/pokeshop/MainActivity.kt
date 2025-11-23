@@ -1,4 +1,3 @@
-// MainActivity.kt
 package com.example.pokeshop
 
 import android.os.Bundle
@@ -7,16 +6,15 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.pokeshop.navigation.AppNavGraph
 import com.example.pokeshop.ui.theme.PokeShopTheme
-import com.example.pokeshop.viewmodel.PokeShopViewModel
+import com.example.pokeshop.viewmodel.*
 
 class MainActivity : ComponentActivity() {
-    // metodo llamado cuando la actividad se crea por primera vez
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -25,26 +23,27 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Obtenemos el contexto de la aplicación
+                    // 1. Obtenemos la instancia de la Aplicación (donde están los repositorios)
                     val context = LocalContext.current
-                    // Creamos una instancia de PokeShopApplication
                     val app = context.applicationContext as PokeShopApplication
-                    // Creamos el controlador de navegación
+
+                    // 2. Controlador de navegación
                     val navController = rememberNavController()
 
-                    // Creamos una instancia del ViewModel
-                    val viewModel = remember {
-                        PokeShopViewModel(
+                    // 3. Instanciamos el ViewModel usando la Factory
+                    // OJO: Usamos 'app' para acceder a los repositorios, no 'application'
+                    val viewModel: PokeShopViewModel = viewModel(
+                        factory = PokeShopViewModelFactory(
                             userRepository = app.userRepository,
                             rolRepository = app.rolRepository,
                             categoryRepository = app.categoryRepository,
                             productRepository = app.productRepository,
-                            saleRepository = app.saleRepository,
-                            saleDetailRepository = app.saleDetailRepository
+                            saleRepository = app.saleRepository
+                            // Ya NO pasamos saleDetailRepository
                         )
-                    }
+                    )
 
-                    // Composición de la pantalla principal
+                    // 4. Llamamos a tu grafo de navegación principal
                     AppNavGraph(
                         navController = navController,
                         viewModel = viewModel

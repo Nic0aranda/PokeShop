@@ -54,8 +54,6 @@ dependencies {
     implementation(libs.androidx.compose.animation.core.lint)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.room.common.jvm)
-    implementation(libs.firebase.database.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,15 +62,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // Room (SQLite)
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-
     // Permite crear formas circulares y definir colores
     implementation("androidx.compose.ui:ui-graphics")
-
-    // Compilador de Room
-    ksp("androidx.room:room-compiler:2.6.1")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -90,4 +81,50 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.0")
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
+
+    // ==== AGREGADOS PARA REST ====
+
+// Retrofit base
+
+    implementation("com.squareup.retrofit2:retrofit:2.11.0") // <-- NUEVO
+
+// Convertidor JSON con Gson
+
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0") // <-- NUEVO
+
+// OkHttp y logging interceptor
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // <-- NUEVO
+
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // <-- NUEVO
+
+
+
+//librerias de Test Locales
+
+    testImplementation(libs.junit) //libreria junit
+
+    testImplementation("io.mockk:mockk:1.13.12") //Mock para kotlin
+
+    testImplementation("org.robolectric:robolectric:4.13") //simular pruebas en Android test locales
+
+//test implementacion UI
+
+    androidTestImplementation(libs.androidx.junit)
+
+    androidTestImplementation(libs.androidx.espresso.core)
+
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+
+    androidTestImplementation(libs.androidx.compose.ui.test.manifest)
+
+//librerias para el manejo de reglas de test
+
+    androidTestImplementation("androidx.test:core-ktx:1.5.0")
+
+    androidTestImplementation("androidx.test:rules:1.5.0")
+
+//libreria splash screen
+
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

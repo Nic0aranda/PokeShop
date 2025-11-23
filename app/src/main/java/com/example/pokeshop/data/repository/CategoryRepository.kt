@@ -1,20 +1,65 @@
 package com.example.pokeshop.data.repository
 
-import com.example.pokeshop.data.dao.CategoryDao
 import com.example.pokeshop.data.entities.CategoryEntity
+import com.example.pokeshop.data.network.ProductApiService
+import com.example.pokeshop.data.network.RetrofitClient
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 
-class CategoryRepository(private val categoryDao: CategoryDao) {
+// Aceptamos 'api' en el constructor para poder inyectar el Mock en los tests
+open class CategoryRepository(
+    private val api: ProductApiService = RetrofitClient.createService(ProductApiService::class.java, "8081")
+) {
 
-    fun getAllCategories(): Flow<List<CategoryEntity>> = categoryDao.getAllCategories()
+    // Obtener todas las categorías
+    fun getAllCategories(): Flow<List<CategoryEntity>> = flow {
+        val categories = api.getAllCategories()
+        emit(categories)
+    }.catch { e ->
+        e.printStackTrace()
+        emit(emptyList())
+    }
 
-    suspend fun getCategoryById(categoryId: Long): CategoryEntity? = categoryDao.getCategoryById(categoryId)
+    // Obtener por ID
+    suspend fun getCategoryById(id: Long): CategoryEntity? {
+        return try {
+            api.getCategoryById(id)
+        } catch (e: Exception) {
+            null
+        }
+    }
 
-    suspend fun insertCategory(category: CategoryEntity): Long = categoryDao.insertCategory(category)
+    // Crear categoría
+    suspend fun insertCategory(category: CategoryEntity): Boolean {
+        return try {
+            api.createCategory(category)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
-    suspend fun updateCategory(category: CategoryEntity) = categoryDao.updateCategory(category)
+    // Actualizar categoría
+    suspend fun updateCategory(category: CategoryEntity): Boolean {
+        return try {
+            api.updateCategory(category.id, category)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
-    suspend fun deleteCategory(category: CategoryEntity) = categoryDao.deleteCategory(category)
-
-    suspend fun getProductCountByCategory(categoryId: Long): Int = categoryDao.getProductCountByCategory(categoryId)
+    // Borrar categoría
+    suspend fun deleteCategory(id: Long): Boolean {
+        return try {
+            api.deleteCategory(id)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

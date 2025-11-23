@@ -1,28 +1,23 @@
 package com.example.pokeshop.data.entities
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-import androidx.room.ForeignKey
+import com.google.gson.annotations.SerializedName
 
-
-@Entity(
-    tableName = "users"
-    , foreignKeys =[
-        ForeignKey(
-        entity = RolEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["rolId"],
-            onDelete = ForeignKey.SET_NULL
-    )
-    ]
-)
 data class UserEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @SerializedName("id")
+    val id: Long? = null,
+
+    @SerializedName("names")
     val names: String,
-    val lastNames: String,
+
+    @SerializedName("email")
     val email: String,
+
+    @SerializedName("password")
     val password: String,
+
+    @SerializedName("status")
     val status: Boolean = true,
-    val rolId: Long? = null
+
+    @SerializedName("rol")
+    val rol: RolEntity? = null
 )

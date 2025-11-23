@@ -18,6 +18,9 @@ sealed class Route(val path: String) {
 
     object Checkout : Route("checkout")
 
+    object Order_success : Route("order_success")
+
+
     object CategoryManagement : Route("category_management")
 
     object EditCategory : Route("edit_category/{categoryId}") {

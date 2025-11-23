@@ -1,12 +1,11 @@
 package com.example.pokeshop.data.entities
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import com.google.gson.annotations.SerializedName
 
-
-@Entity(tableName = "roles")
 data class RolEntity(
-    @PrimaryKey(autoGenerate = true)
+    @SerializedName("id", alternate = ["idRol", "id_rol"])
     val id: Long = 0,
+
+    @SerializedName("name", alternate = ["nombre"])
     val name: String
 )

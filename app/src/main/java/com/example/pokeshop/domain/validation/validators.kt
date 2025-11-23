@@ -2,51 +2,79 @@ package com.example.pokeshop.domain.validation
 
 import android.util.Patterns
 
-// Objeto para agrupar las funciones de validación
 object Validation {
 
-    //funcion para validar que el nombre de usuario no este vacio
+    /**
+     * Valida el nombre de usuario:
+     * - No puede estar vacío.
+     * - Debe tener al menos 3 caracteres.
+     * - No puede contener números.
+     */
     fun validateUsername(username: String): String? {
-        return if (username.isBlank()) {
-            "El nombre de usuario no puede estar vacío."
-        } else {
-            null // Válido
+        if (username.isBlank()) {
+            return "El nombre de usuario no puede estar vacío."
         }
+        if (username.length < 3) {
+            return "El nombre debe tener al menos 3 letras."
+        }
+        // Verificamos si contiene algún dígito
+        if (username.any { it.isDigit() }) {
+            return "El nombre no puede contener números."
+        }
+        return null // Válido
     }
 
-    //funcion para validar que el email no este vacio y tenga el patron de un email
+    /**
+     * Valida el email:
+     * - Usa el patrón nativo de Android.
+     */
     fun validateEmail(email: String): String? {
-        return if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            "Introduce un correo electrónico válido."
-        } else {
-            null // Válido
+        if (email.isBlank()) {
+            return "El correo no puede estar vacío."
         }
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return "Introduce un correo electrónico válido."
+        }
+        return null // Válido
     }
 
-    //funcion para validar que la contraseña no este vacia y tenga al menos 6 caracteres
+    /**
+     * Valida la contraseña:
+     * - Mínimo 8 caracteres.
+     * - Al menos una mayúscula.
+     * - Al menos una minúscula.
+     * - Al menos un número.
+     * - Al menos un carácter especial (algo que no sea letra ni número).
+     */
     fun validatePassword(password: String): String? {
-        return if (password.length < 6) {
-            "La contraseña debe tener al menos 6 caracteres."
-        } else {
-            null // Válido
+        if (password.length < 8) {
+            return "La contraseña debe tener al menos 8 caracteres."
         }
+        if (!password.any { it.isUpperCase() }) {
+            return "La contraseña debe tener al menos una mayúscula."
+        }
+        if (!password.any { it.isLowerCase() }) {
+            return "La contraseña debe tener al menos una minúscula."
+        }
+        if (!password.any { it.isDigit() }) {
+            return "La contraseña debe tener al menos un número."
+        }
+        // Verificamos si hay al menos un carácter que NO sea letra ni dígito
+        if (password.all { it.isLetterOrDigit() }) {
+            return "La contraseña debe tener al menos un carácter especial (ej: @, #, $)."
+        }
+
+        return null // Válido
     }
 
-    //funcion para validar que las contraseñas sean iguales
+    /**
+     * Valida la confirmación de contraseña:
+     * - Deben ser idénticas.
+     */
     fun validateConfirmPassword(password: String, confirmPassword: String): String? {
-        return if (password != confirmPassword) {
-            "Las contraseñas no coinciden."
-        } else {
-            null // Válido
+        if (password != confirmPassword) {
+            return "Las contraseñas no coinciden."
         }
-    }
-
-    // --- Validaciones para Login (más sencillas, solo comprueban que no estén vacíos) ---
-    fun isLoginEmailValid(email: String): Boolean {
-        return email.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    }
-
-    fun isLoginPasswordValid(pass: String): Boolean {
-        return pass.isNotBlank()
+        return null // Válido
     }
 }
