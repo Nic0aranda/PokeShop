@@ -7,6 +7,6 @@ data class CategoryEntity(
     @SerializedName("id", alternate = ["idCategoria", "id_categoria"])
     val id: Long = 0,
 
-    @SerializedName("name", alternate = ["nombre"])
+    @SerializedName("nombre", alternate = ["name"])
     val name: String
 )

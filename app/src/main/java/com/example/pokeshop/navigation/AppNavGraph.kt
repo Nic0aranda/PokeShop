@@ -197,7 +197,8 @@ fun AppNavGraph(
                 onNavigateBack = {
                     // Navega hacia atrás si es necesario.
                     navController.popBackStack()
-                }
+                },
+                categoryId = categoryId?.toInt() ?: 0
             )
         }
 

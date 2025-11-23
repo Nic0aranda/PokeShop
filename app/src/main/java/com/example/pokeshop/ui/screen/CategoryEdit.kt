@@ -3,12 +3,16 @@ package com.example.pokeshop.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -18,65 +22,94 @@ import com.example.pokeshop.viewmodel.PokeShopViewModel
 
 @Composable
 fun CategoryEditScreen(
+    categoryId: Int,
     viewModel: PokeShopViewModel,
     onNavigateBack: () -> Unit
 ) {
-    // Observa el estado de la UI de edición desde el ViewModel.
-    val uiState by viewModel.categoryEditUiState.collectAsState()
+    // 1. CARGAR DATOS
+    LaunchedEffect(categoryId) {
+        viewModel.loadCategoryForEdit(categoryId.toLong())
+    }
 
-    // Efecto que se dispara cuando el guardado es exitoso para navegar hacia atrás.
+    val uiState by viewModel.categoryEditUiState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) } // Estado del diálogo de confirmación
+
+    // 2. NAVEGACIÓN: Si se guardó con éxito, volvemos atrás
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
+            viewModel.clearEditCategoryState()
             onNavigateBack()
         }
     }
 
-    // Efecto que se dispara cuando la pantalla se va de la composición.
-    // Se asegura de limpiar el estado para no mostrar datos viejos la próxima vez.
+    // 3. LIMPIEZA
     DisposableEffect(Unit) {
         onDispose {
             viewModel.clearEditCategoryState()
         }
     }
 
-    // Llamada al composable que renderiza la UI.
+    // Lógica para el borrado (requiere el ID de la categoría)
+    val currentCategoryId = uiState.category?.id
+
     CategoryEditView(
         uiState = uiState,
         onNameChange = viewModel::onCategoryNameChange,
         onSaveChanges = viewModel::saveCategoryChanges,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        onDeletePress = { showDeleteDialog = true } // Mostrar diálogo al presionar borrar
     )
+
+    // 4. Diálogo de confirmación de borrado
+    if (showDeleteDialog && currentCategoryId != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirmar Eliminación") },
+            text = { Text("¿Estás seguro de que deseas eliminar la categoría '${uiState.category?.name}'? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteCategory(currentCategoryId, onNavigateBack) // Llamada a la nueva función
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryEditView(
     uiState: CategoryEditUiState,
-    // Maneja los cambios en el nombre de la categoría.
     onNameChange: (String) -> Unit,
-    // Guarda los cambios en la categoría.
     onSaveChanges: () -> Unit,
-    // Navega hacia atrás.
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onDeletePress: () -> Unit // Nuevo callback para el botón borrar
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (uiState.category != null) "Editar Categoría" else "Cargando...")
+                    val titleText = uiState.category?.name?.let { "Editar: $it" } ?: "Cargando..."
+                    Text(titleText)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
@@ -88,11 +121,9 @@ private fun CategoryEditView(
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Muestra el indicador de progreso mientras carga.
             if (uiState.isLoading) {
                 CircularProgressIndicator()
             } else {
-                // Muestra el formulario de edición cuando la carga ha terminado.
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -104,17 +135,15 @@ private fun CategoryEditView(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Campo de texto para el nombre de la categoría.
                     OutlinedTextField(
                         value = uiState.categoryName,
                         onValueChange = onNameChange,
                         label = { Text("Nombre de la categoría") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        isError = uiState.nameError != null || uiState.errorMessage != null
+                        isError = uiState.errorMessage != null
                     )
 
-                    // Muestra el mensaje de error si existe.
                     if (uiState.errorMessage != null) {
                         Text(
                             text = uiState.errorMessage,
@@ -129,7 +158,7 @@ private fun CategoryEditView(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // Botón para guardar los cambios.
+                    // --- BOTÓN GUARDAR (Primario) ---
                     Button(
                         onClick = onSaveChanges,
                         enabled = uiState.canBeSaved && !uiState.isSaving,
@@ -138,20 +167,32 @@ private fun CategoryEditView(
                             .height(50.dp)
                     ) {
                         if (uiState.isSaving) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
+                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Guardando...")
                         } else {
                             Text("Guardar Cambios")
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // --- BOTÓN BORRAR (Secundario/Destructivo) ---
+                    OutlinedButton(
+                        onClick = onDeletePress,
+                        // El botón de borrar siempre está habilitado si no está guardando
+                        enabled = !uiState.isSaving && uiState.category != null,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Borrar Categoría")
+                    }
                 }
             }
         }
     }
 }
-

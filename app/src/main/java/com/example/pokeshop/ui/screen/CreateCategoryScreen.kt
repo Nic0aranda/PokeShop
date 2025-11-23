@@ -18,24 +18,23 @@ fun CreateCategoryScreen(
     viewModel: PokeShopViewModel,
     onNavigateBack: () -> Unit
 ) {
-    // Estado del ViewModel.
+    // 1. Observamos el estado de creación
     val uiState by viewModel.categoryCreateUiState.collectAsState()
 
-    // Efecto que navega hacia atrás cuando la creación es exitosa.
+    // 2. Si la creación es exitosa, volvemos atrás automáticamente
     LaunchedEffect(uiState.createSuccess) {
         if (uiState.createSuccess) {
             onNavigateBack()
         }
     }
 
-    // Efecto que limpia el estado cuando la pantalla se va.
+    // 3. Limpiamos el formulario al salir para que no queden datos viejos
     DisposableEffect(Unit) {
         onDispose {
             viewModel.clearCreateCategoryState()
         }
     }
 
-    // Llamada al Composable que renderiza la vista.
     CreateCategoryView(
         uiState = uiState,
         onNameChange = viewModel::onNewCategoryNameChange,
@@ -44,19 +43,18 @@ fun CreateCategoryScreen(
     )
 }
 
-// Composable que renderiza la vista de creación de categoría.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateCategoryView(
-    uiState: CategoryCreateUiState, // Estado del ViewModel.
-    onNameChange: (String) -> Unit, // Maneja cambios en el nombre.
-    onCreateCategory: () -> Unit, // Crea la categoría.
+    uiState: CategoryCreateUiState,
+    onNameChange: (String) -> Unit,
+    onCreateCategory: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nueva Categoría") }, // Título de la pantalla.
+                title = { Text("Nueva Categoría") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -73,68 +71,72 @@ private fun CreateCategoryView(
             )
         }
     ) { paddingValues ->
-        //Formulario de creación de categoría.
-        Column(
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Ingresa el nombre para la nueva categoría:",
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Campo de texto para el nombre.
-            OutlinedTextField(
-                value = uiState.categoryName,
-                onValueChange = onNameChange,
-                label = { Text("Nombre de la categoría") },
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = uiState.nameError != null || uiState.errorMessage != null
-            )
-
-            // Muestra mensajes de error generales.
-            if (uiState.errorMessage != null) {
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = uiState.errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
+                    text = "Ingresa el nombre para la nueva categoría:",
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Campo de texto
+                OutlinedTextField(
+                    value = uiState.categoryName,
+                    onValueChange = onNameChange,
+                    label = { Text("Nombre de la categoría") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    // Mostramos error si la validación falla o si la API devuelve error
+                    isError = uiState.nameError != null || uiState.errorMessage != null
+                )
+
+                // Mensajes de error
+                if (uiState.errorMessage != null) {
+                    Text(
+                        text = uiState.errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Botón Crear
+                Button(
+                    onClick = onCreateCategory,
+                    // Se deshabilita si el nombre está vacío o si ya se está enviando
+                    enabled = uiState.canBeCreated && !uiState.isCreating,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Botón para crear la categoría.
-            Button(
-                onClick = onCreateCategory,
-                enabled = uiState.canBeCreated && !uiState.isCreating,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                if (uiState.isCreating) {
-                    CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Creando...")
-                } else {
-                    Text("Crear Categoría")
+                        .height(50.dp)
+                ) {
+                    if (uiState.isCreating) {
+                        CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Creando...")
+                    } else {
+                        Text("Crear Categoría")
+                    }
                 }
             }
         }
     }
 }
-

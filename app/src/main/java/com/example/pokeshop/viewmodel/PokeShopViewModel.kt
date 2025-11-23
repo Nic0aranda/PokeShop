@@ -374,6 +374,29 @@ class PokeShopViewModel(
     fun clearEditCategoryState() { _categoryEditUiState.value = CategoryEditUiState() }
     fun clearCreateCategoryState() { _categoryCreateUiState.value = CategoryCreateUiState() }
 
+    fun deleteCategory(categoryId: Long, onDeletionSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                // Llamada al repositorio para eliminar en la API
+                val success = categoryRepository.deleteCategory(categoryId)
+
+                if (success) {
+                    // Si la eliminación fue exitosa, navegamos fuera de la pantalla
+                    onDeletionSuccess()
+
+                    // Forzamos la recarga de la lista de categorías en la pantalla de gestión
+                    loadManagedCategories()
+
+                    snackbarHostState.showSnackbar("Categoría eliminada correctamente.")
+                } else {
+                    snackbarHostState.showSnackbar("Error al eliminar la categoría del servidor.")
+                }
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Error: ${e.message}")
+            }
+        }
+    }
+
     // --- CART & CHECKOUT ---
 
     fun onCurrencyChange(currency: String) {
