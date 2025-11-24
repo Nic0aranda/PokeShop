@@ -6,11 +6,16 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.pokeshop.navigation.AppNavGraph
+import com.example.pokeshop.ui.components.SplashScreen
 import com.example.pokeshop.ui.theme.PokeShopTheme
 import com.example.pokeshop.viewmodel.*
 
@@ -43,11 +48,20 @@ class MainActivity : ComponentActivity() {
                         )
                     )
 
-                    // 4. Llamamos a tu grafo de navegación principal
-                    AppNavGraph(
-                        navController = navController,
-                        viewModel = viewModel
-                    )
+                    var showSplash by remember { mutableStateOf(true) }
+
+                    if (showSplash) {
+                        SplashScreen {
+                            showSplash = false
+                        }
+                    } else {
+
+                        // 4. Llamamos a tu grafo de navegación principal
+                        AppNavGraph(
+                            navController = navController,
+                            viewModel = viewModel
+                        )
+                    }
                 }
             }
         }
