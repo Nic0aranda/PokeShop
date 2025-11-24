@@ -17,7 +17,7 @@ interface ProductApiService {
     ): List<ProductEntity>
 
     // @GetMapping("/{id}")
-    @GET("api/v1/productos/{id}")
+    @GET("products/{id}")
     suspend fun getProductById(@Path("id") id: Long): ProductEntity
 
     // @PostMapping

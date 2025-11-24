@@ -23,4 +23,5 @@ data class ProductEntity(
 
     @SerializedName("status", alternate = ["estado"])
     val status: Boolean = true
+
 )

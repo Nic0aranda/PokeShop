@@ -1,5 +1,9 @@
 package com.example.pokeshop.viewmodel
 
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
+import android.util.Log
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -10,10 +14,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.pokeshop.data.entities.*
 import com.example.pokeshop.data.repository.*
 import com.example.pokeshop.domain.validation.Validation
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // --- UI STATES (Data Classes) ---
 
@@ -112,6 +118,19 @@ data class CategoryCreateUiState(
     val errorMessage: String? = null
 )
 
+data class ProductEditUiState(
+    val isLoading: Boolean = true,
+    val product: ProductEntity? = null,
+    val name: String = "",
+    val description: String = "",
+    val price: String = "",
+    val stock: String = "",
+    val category: CategoryEntity? = null,
+    val errorMessage: String? = null,
+    val isSaving: Boolean = false,
+    val saveSuccess: Boolean = false
+)
+
 // --- MAIN VIEWMODEL ---
 
 class PokeShopViewModel(
@@ -122,7 +141,7 @@ class PokeShopViewModel(
     private val saleRepository: SaleRepository
 ) : ViewModel() {
 
-    // --- StateFlows ---
+    // --- Flujos de Estado ---
     private val _uiState = MutableStateFlow(PokeShopUiState())
     val uiState: StateFlow<PokeShopUiState> = _uiState.asStateFlow()
 
@@ -147,6 +166,9 @@ class PokeShopViewModel(
     private val _categoryCreateUiState = MutableStateFlow(CategoryCreateUiState())
     val categoryCreateUiState: StateFlow<CategoryCreateUiState> = _categoryCreateUiState.asStateFlow()
 
+    private val _productEditUiState = MutableStateFlow(ProductEditUiState())
+    val productEditUiState: StateFlow<ProductEditUiState> = _productEditUiState.asStateFlow()
+
     // Form States
     var uiStateLogin by mutableStateOf(LoginUiState())
         private set
@@ -165,6 +187,9 @@ class PokeShopViewModel(
     var totalInClp by mutableDoubleStateOf(0.0)
         private set
 
+
+    var isSavingProduct by mutableStateOf(false)
+        private set
     val snackbarHostState = SnackbarHostState()
     private var isDataLoaded = false
 
@@ -175,7 +200,7 @@ class PokeShopViewModel(
 
     // --- DATA LOADING ---
 
-    private fun loadInitialData() {
+    fun loadInitialData() {
         if (isDataLoaded) return
         viewModelScope.launch {
             _catalogUiState.update { it.copy(isLoading = true) }
@@ -211,7 +236,6 @@ class PokeShopViewModel(
                 _catalogUiState.map { it.selectedCategoryId }.distinctUntilChanged()
             ) { products, query, categoryId ->
                 products.filter { product ->
-                    // Fix for nested object filtering
                     val matchesCategory = categoryId == null || product.category?.id == categoryId
                     val matchesSearch = query.isBlank() || product.name.contains(query, ignoreCase = true)
                     matchesCategory && matchesSearch
@@ -226,13 +250,8 @@ class PokeShopViewModel(
         }
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _catalogUiState.update { it.copy(searchQuery = query) }
-    }
-
-    fun onCategorySelected(categoryId: Long?) {
-        _catalogUiState.update { it.copy(selectedCategoryId = categoryId) }
-    }
+    fun onSearchQueryChanged(query: String) { _catalogUiState.update { it.copy(searchQuery = query) } }
+    fun onCategorySelected(categoryId: Long?) { _catalogUiState.update { it.copy(selectedCategoryId = categoryId) } }
 
     fun getProductById(productId: Long) {
         viewModelScope.launch {
@@ -254,16 +273,191 @@ class PokeShopViewModel(
             val catObj = CategoryEntity(id = categoryId, name = "") // Temp object for ID linking
 
             val newProduct = ProductEntity(
-                name = name,
-                description = description,
-                price = price,
-                stock = stock,
-                category = catObj,
-                status = true
+                name = name, description = description, price = price, stock = stock, category = catObj, status = true
             )
             productRepository.insertProduct(newProduct)
             isDataLoaded = false
             loadInitialData()
+        }
+    }
+
+    suspend fun Uri.toBase64String(context: Context): String? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(this@toBase64String)?.use { inputStream ->
+                val bytes = inputStream.readBytes()
+                // Usamos Base64.NO_WRAP para evitar saltos de línea
+                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun createProductAndUploadImage(
+        context: Context,
+        name: String, description: String, price: Double, stock: Int, categoryId: Long,
+        imageUri: Uri?
+    ) {
+        viewModelScope.launch {
+            isSavingProduct = true
+            snackbarHostState.showSnackbar("Creando producto...")
+
+            try {
+                // 1. DTO y POST Producto (Obtener ID)
+                val catObj = CategoryEntity(id = categoryId, name = "")
+                val newProduct = ProductEntity(name = name, description = description, price = price, stock = stock, category = catObj, status = true)
+
+                val newProductId = productRepository.insertProduct(newProduct)
+
+                if (newProductId <= 0L) {
+                    snackbarHostState.showSnackbar("Error al crear producto: API no devolvió ID.")
+                    return@launch
+                }
+
+                // 2. Subir Imagen (si existe)
+                if (imageUri != null) {
+                    snackbarHostState.showSnackbar("Subiendo imagen...")
+
+                    // Llama a la función de extensión externa (requiere importación en el archivo)
+                    val base64String = imageUri.toBase64String(context)
+
+                    if (!base64String.isNullOrEmpty()) {
+                        val success = productRepository.uploadImages(newProductId, listOf(base64String))
+                        if (!success) {
+                            snackbarHostState.showSnackbar("Advertencia: Producto creado, pero falló la subida de imagen.")
+                        }
+                    }
+                }
+
+                // 3. Éxito Final y Recarga
+                snackbarHostState.showSnackbar("Producto guardado con éxito!")
+                isDataLoaded = false
+                loadInitialData()
+
+            } catch (e: Exception) {
+                // Si el crash es síncrono (ej: DTO malformado), el stack trace se imprimirá en Logcat
+                e.printStackTrace()
+                snackbarHostState.showSnackbar("Error crítico al guardar: ${e.message}")
+            } finally {
+                isSavingProduct = false
+            }
+        }
+    }
+
+    fun loadProductForEdit(productId: Long) {
+        viewModelScope.launch {
+            Log.d("ViewModel", "Cargando producto para editar: $productId")
+            _productEditUiState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                val product = productRepository.getProductById(productId)
+                Log.d("ViewModel", "Producto recibido: ${product?.name}")
+
+                if (product != null) {
+                    _productEditUiState.update {
+                        it.copy(
+                            isLoading = false,
+                            product = product,
+                            name = product.name,
+                            description = product.description ?: "", // Maneja null
+                            price = product.price.toString(),
+                            stock = product.stock.toString(),
+                            category = product.category
+                        )
+                    }
+                    Log.d("ViewModel", "Estado actualizado correctamente")
+                } else {
+                    Log.e("ViewModel", "Producto no encontrado: $productId")
+                    _productEditUiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Producto no encontrado"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error cargando producto: ${e.message}")
+                _productEditUiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    // 2. ACTUALIZACIÓN DE ESTADO DE CAMPOS DE TEXTO
+    fun onEditProductDataChange(field: String, value: String) {
+        _productEditUiState.update { currentState ->
+            when (field) {
+                "name" -> currentState.copy(name = value)
+                "description" -> currentState.copy(description = value)
+                "price" -> currentState.copy(price = value)
+                "stock" -> currentState.copy(stock = value)
+                else -> currentState
+            }
+        }
+    }
+
+    // 3. ACTUALIZACIÓN DE CATEGORÍA
+    fun onEditProductCategoryChange(category: CategoryEntity) {
+        _productEditUiState.update { it.copy(category = category) }
+    }
+
+    // 4. GUARDAR CAMBIOS (PUT /productos/{id})
+    fun saveProductChanges() {
+        viewModelScope.launch {
+            val state = _productEditUiState.value
+            val originalProduct = state.product ?: return@launch
+
+            _productEditUiState.update { it.copy(isSaving = true, errorMessage = null) }
+
+            try {
+                // Se construyen los nuevos datos asegurando los tipos correctos (Double/Int)
+                val updatedProduct = originalProduct.copy(
+                    name = state.name,
+                    description = state.description,
+                    price = state.price.toDouble(),
+                    stock = state.stock.toInt(),
+                    category = state.category // Usamos el objeto CategoryEntity actualizado
+                )
+
+                val success = productRepository.updateProduct(updatedProduct)
+
+                if (success) {
+                    _productEditUiState.update { it.copy(isSaving = false, saveSuccess = true) }
+                    // Recargar el catálogo principal para que el cambio sea visible
+                    loadInitialData()
+                } else {
+                    _productEditUiState.update { it.copy(isSaving = false, errorMessage = "Error en el servidor al actualizar.") }
+                }
+
+            } catch (e: Exception) {
+                _productEditUiState.update { it.copy(isSaving = false, errorMessage = "Datos inválidos: ${e.message}") }
+            }
+        }
+    }
+
+    // 5. BORRAR PRODUCTO (DELETE /productos/{id})
+    fun deleteProduct(onDeletionSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val productId = _productEditUiState.value.product?.id ?: return@launch
+
+            try {
+                val success = productRepository.deleteProduct(productId)
+
+                if (success) {
+                    onDeletionSuccess()
+                    // Recargar el catálogo principal
+                    loadInitialData()
+                    snackbarHostState.showSnackbar("Producto eliminado correctamente.")
+                } else {
+                    snackbarHostState.showSnackbar("Error al eliminar del servidor.")
+                }
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Error: ${e.message}")
+            }
         }
     }
 
@@ -275,9 +469,7 @@ class PokeShopViewModel(
             try {
                 categoryRepository.getAllCategories().collect { categoryEntities ->
                     val categoriesModel = categoryEntities.map { Category(id = it.id, name = it.name) }
-                    _categoryManagementUiState.update {
-                        it.copy(categories = categoriesModel, isLoading = false)
-                    }
+                    _categoryManagementUiState.update { it.copy(categories = categoriesModel, isLoading = false) }
                 }
             } catch (e: Exception) {
                 _categoryManagementUiState.update { it.copy(isLoading = false) }
@@ -287,14 +479,12 @@ class PokeShopViewModel(
 
     fun loadCategoryForEdit(categoryId: Long) {
         viewModelScope.launch {
-            _categoryEditUiState.value = CategoryEditUiState(isLoading = true)
+            _categoryEditUiState.update { it.copy(isLoading = true) }
             try {
                 val categoryEntity = categoryRepository.getCategoryById(categoryId)
                 if (categoryEntity != null) {
                     val categoryModel = Category(id = categoryEntity.id, name = categoryEntity.name)
-                    _categoryEditUiState.update {
-                        it.copy(isLoading = false, category = categoryModel, categoryName = categoryModel.name)
-                    }
+                    _categoryEditUiState.update { it.copy(isLoading = false, category = categoryModel, categoryName = categoryModel.name) }
                 } else {
                     _categoryEditUiState.update { it.copy(isLoading = false, errorMessage = "No encontrada.") }
                 }
@@ -305,12 +495,9 @@ class PokeShopViewModel(
     }
 
     fun onCategoryNameChange(newName: String) {
-        _categoryEditUiState.update {
-            it.copy(categoryName = newName, canBeSaved = newName.isNotBlank())
-        }
+        _categoryEditUiState.update { it.copy(categoryName = newName, canBeSaved = newName.isNotBlank()) }
     }
 
-    // --- FIX: Using !! to ensure non-null ID ---
     fun saveCategoryChanges() {
         viewModelScope.launch {
             val currentState = _categoryEditUiState.value
@@ -323,7 +510,7 @@ class PokeShopViewModel(
             _categoryEditUiState.update { it.copy(isSaving = true, errorMessage = null) }
 
             try {
-                val currentId = currentState.category!!.id // Safe because we checked null above
+                val currentId = currentState.category!!.id
 
                 val updatedCategoryEntity = CategoryEntity(
                     id = currentId,
@@ -345,12 +532,9 @@ class PokeShopViewModel(
     }
 
     fun onNewCategoryNameChange(newName: String) {
-        _categoryCreateUiState.update {
-            it.copy(categoryName = newName, canBeCreated = newName.isNotBlank())
-        }
+        _categoryCreateUiState.update { it.copy(categoryName = newName, canBeCreated = newName.isNotBlank()) }
     }
 
-    // --- FIX: Using 0L for ID ---
     fun createNewCategory() {
         viewModelScope.launch {
             val currentState = _categoryCreateUiState.value
@@ -371,22 +555,14 @@ class PokeShopViewModel(
         }
     }
 
-    fun clearEditCategoryState() { _categoryEditUiState.value = CategoryEditUiState() }
-    fun clearCreateCategoryState() { _categoryCreateUiState.value = CategoryCreateUiState() }
-
     fun deleteCategory(categoryId: Long, onDeletionSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
-                // Llamada al repositorio para eliminar en la API
                 val success = categoryRepository.deleteCategory(categoryId)
 
                 if (success) {
-                    // Si la eliminación fue exitosa, navegamos fuera de la pantalla
                     onDeletionSuccess()
-
-                    // Forzamos la recarga de la lista de categorías en la pantalla de gestión
                     loadManagedCategories()
-
                     snackbarHostState.showSnackbar("Categoría eliminada correctamente.")
                 } else {
                     snackbarHostState.showSnackbar("Error al eliminar la categoría del servidor.")
@@ -397,11 +573,12 @@ class PokeShopViewModel(
         }
     }
 
+    fun clearEditCategoryState() { _categoryEditUiState.value = CategoryEditUiState() }
+    fun clearCreateCategoryState() { _categoryCreateUiState.value = CategoryCreateUiState() }
+
     // --- CART & CHECKOUT ---
 
-    fun onCurrencyChange(currency: String) {
-        selectedCurrency = currency
-    }
+    fun onCurrencyChange(currency: String) { selectedCurrency = currency }
 
     fun addToCart(product: ProductEntity) {
         viewModelScope.launch {
@@ -441,10 +618,7 @@ class PokeShopViewModel(
         }
     }
 
-    fun clearCart() {
-        _cartUiState.value = CartUiState()
-        totalInClp = 0.0
-    }
+    fun clearCart() { _cartUiState.value = CartUiState(); totalInClp = 0.0 }
 
     fun increaseCartItemQuantity(productId: Int) {
         _cartUiState.update { currentState ->
@@ -535,14 +709,11 @@ class PokeShopViewModel(
     fun saveProfileChanges() {
         viewModelScope.launch {
             val currentUser = _uiState.value.currentUser ?: return@launch
-
             if (editUsername.isBlank()) {
                 snackbarHostState.showSnackbar("El nombre no puede estar vacío")
                 return@launch
             }
-
             val updatedUser = currentUser.copy(names = editUsername)
-
             try {
                 userRepository.updateUser(updatedUser)
                 _uiState.update { it.copy(currentUser = updatedUser) }
@@ -616,6 +787,7 @@ class PokeShopViewModel(
             }
         }
     }
+
 
     // --- HELPERS ---
     fun updateLoginEmail(email: String) { uiStateLogin = uiStateLogin.copy(email = email, emailError = Validation.validateEmail(email), canSubmit = validateLoginForm()) }

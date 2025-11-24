@@ -33,6 +33,6 @@ sealed class Route(val path: String) {
     object CreateProduct : Route("create_product")
 
     object EditProduct : Route("edit_product/{productId}") {
-        fun createRoute(productId: Int) = "edit_product/$productId"
+        fun createRoute(productId: Long) = "edit_product/$productId"
     }
 }

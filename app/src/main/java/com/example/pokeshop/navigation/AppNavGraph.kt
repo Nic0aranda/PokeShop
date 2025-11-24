@@ -1,5 +1,6 @@
 package com.example.pokeshop.navigation
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
@@ -17,14 +18,14 @@ import com.example.pokeshop.ui.screen.ProductDetailScreen
 import com.example.pokeshop.ui.screen.ProfileScreen
 import com.example.pokeshop.ui.screen.Registro
 import com.example.pokeshop.viewmodel.PokeShopViewModel
-import androidx.compose.runtime.collectAsState
 import com.example.pokeshop.ui.screen.AddProductScreen
 import com.example.pokeshop.ui.screen.AdminHomeScreen
 import com.example.pokeshop.ui.screen.CategoryEditScreen
 import com.example.pokeshop.ui.screen.CategoryManagementScreenVm
 import com.example.pokeshop.ui.screen.CreateCategoryScreen
 import com.example.pokeshop.ui.screen.OrderSuccessScreen
-import com.example.pokeshop.ui.screen.ProductManagementScreen
+import com.example.pokeshop.ui.screen.ProductEditScreen
+import com.example.pokeshop.ui.screen.ProductManagementScreenVm
 
 
 @Composable
@@ -152,16 +153,16 @@ fun AppNavGraph(
 
         // composables que definen a donde llevaran los paths asociados a la gestion de productos
         composable (Route.ProductManagement.path) {
-            ProductManagementScreen(
+            ProductManagementScreenVm(
                 viewModel = viewModel,
                 onBackPress = {
                     navController.popBackStack()
                 },
-                onAddProduct = {
+                onGoToCreateProduct = {
                     navController.navigate(Route.CreateProduct.path)
                 },
-                onEditProduct = { productId ->
-                    // Navega a la pantalla de edición pasando el ID del producto
+                onGoToEditProduct = { productId ->
+                    // Asegúrate de que productId sea Long, no Int
                     navController.navigate(Route.EditProduct.createRoute(productId))
                 }
             )
@@ -174,6 +175,27 @@ fun AppNavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(
+            route = Route.EditProduct.path,
+            arguments = listOf(
+                navArgument("productId") {
+                    type = NavType.StringType // Cambia a StringType
+                }
+            )
+        ) { backStackEntry ->
+            // Obtén como String y luego convierte a Long
+            val productIdString = backStackEntry.arguments?.getString("productId") ?: "0"
+            val productId = productIdString.toLongOrNull() ?: 0L
+
+            Log.d("NavGraph", "Navegando a edición con ID: $productId (de string: $productIdString)")
+
+            ProductEditScreen(
+                productId = productId,
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

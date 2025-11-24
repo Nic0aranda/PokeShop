@@ -1,5 +1,6 @@
 package com.example.pokeshop.data.repository
 
+import android.util.Log
 import com.example.pokeshop.data.dto.ImagesJsonRequest
 import com.example.pokeshop.data.dto.ImgEntity
 import com.example.pokeshop.data.entities.ProductEntity
@@ -25,21 +26,25 @@ open class ProductRepository(
 
     suspend fun getProductById(id: Long): ProductEntity? {
         return try {
-            api.getProductById(id)
+            // Asegúrate de que la API espera un Long
+            val product = api.getProductById(id)
+            Log.d("ProductRepository", "Producto cargado: ${product?.name} - ID: ${product?.id}")
+            product
         } catch (e: Exception) {
+            Log.e("ProductRepository", "Error cargando producto $id: ${e.message}")
+            e.printStackTrace()
             null
         }
     }
 
     // --- Escritura (CRUD) ---
 
-    suspend fun insertProduct(product: ProductEntity): Boolean {
+    suspend fun insertProduct(product: ProductEntity): Long {
         return try {
-            api.createProduct(product)
-            true
+            val createdProduct = api.createProduct(product)
+            createdProduct.id ?: -1L // Devuelve el Long ID generado o -1 en error
         } catch (e: Exception) {
-            e.printStackTrace()
-            false
+            -1L
         }
     }
 
